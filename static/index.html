@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公文自动排版工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8ebff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 12px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            color: #0369a1;
+            font-weight: 500;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+        }
+
+        .result.error {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+        }
+
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result.success .result-title {
+            color: #166534;
+        }
+
+        .result.error .result-title {
+            color: #991b1b;
+        }
+
+        .result-message {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn-download {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #22c55e;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-download:hover {
+            background: #16a34a;
+        }
+
+        .format-rules {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .format-rules h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .rules-table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+
+        .rules-table th,
+        .rules-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .rules-table th {
+            background: #f5f5f5;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>公文自动排版工具</h1>
+        <p class="subtitle">基于AI的党政机关公文格式化服务</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📄</div>
+            <p class="upload-text">点击或拖拽上传Word文档</p>
+            <p class="upload-hint">支持 .docx, .doc 格式，最大 10MB</p>
+        </div>
+        <input type="file" id="fileInput" accept=".docx,.doc">
+
+        <div class="file-info" id="fileInfo">
+            <span class="file-name" id="fileName"></span>
+        </div>
+
+        <button class="btn btn-primary" id="formatBtn" disabled>
+            开始排版
+        </button>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p class="progress-text" id="progressText">正在处理...</p>
+        </div>
+
+        <div class="result" id="result">
+            <p class="result-title" id="resultTitle"></p>
+            <p class="result-message" id="resultMessage"></p>
+            <a class="btn-download" id="downloadBtn" style="display: none;">下载排版后的文档</a>
+        </div>
+
+        <div class="format-rules">
+            <h3>排版规则说明 (GB/T 9704-2012)</h3>
+            <table class="rules-table">
+                <tr>
+                    <th>元素</th>
+                    <th>字体</th>
+                    <th>字号</th>
+                </tr>
+                <tr>
+                    <td>公文标题</td>
+                    <td>方正小标宋简体</td>
+                    <td>二号</td>
+                </tr>
+                <tr>
+                    <td>一级标题</td>
+                    <td>黑体</td>
+                    <td>三号</td>
+                </tr>
+                <tr>
+                    <td>二级标题</td>
+                    <td>楷体_GB2312</td>
+                    <td>三号</td>
+                </tr>
+                <tr>
+                    <td>三、四级标题</td>
+                    <td>仿宋_GB2312</td>
+                    <td>三号</td>
+                </tr>
+                <tr>
+                    <td>正文</td>
+                    <td>仿宋_GB2312</td>
+                    <td>三号</td>
+                </tr>
+                <tr>
+                    <td>数字</td>
+                    <td>Times New Roman</td>
+                    <td>-</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const formatBtn = document.getElementById('formatBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultMessage = document.getElementById('resultMessage');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let selectedFile = null;
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['docx', 'doc'].includes(ext)) {
+                alert('请选择 .docx 或 .doc 格式的文件');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert('文件大小不能超过 10MB');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = `已选择: ${file.name}`;
+            fileInfo.classList.add('show');
+            formatBtn.disabled = false;
+            result.classList.remove('show');
+        }
+
+        // 开始排版
+        formatBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            formatBtn.disabled = true;
+            formatBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
+            progressContainer.classList.add('show');
+            result.classList.remove('show');
+
+            // 模拟进度
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 15;
+                    progressFill.style.width = `${Math.min(progress, 90)}%`;
+
+                    if (progress < 30) {
+                        progressText.textContent = '正在解析文档...';
+                    } else if (progress < 60) {
+                        progressText.textContent = '正在分析文档结构...';
+                    } else {
+                        progressText.textContent = '正在应用公文格式...';
+                    }
+                }
+            }, 500);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                const response = await fetch('/api/format', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressText.textContent = '处理完成！';
+
+                const data = await response.json();
+
+                setTimeout(() => {
+                    progressContainer.classList.remove('show');
+                    result.classList.add('show');
+
+                    if (data.success) {
+                        result.className = 'result show success';
+                        resultTitle.textContent = '✅ 排版成功！';
+                        resultMessage.textContent = data.message;
+                        downloadBtn.href = data.download_url;
+                        downloadBtn.style.display = 'inline-block';
+                        downloadBtn.download = data.output_filename;
+                    } else {
+                        result.className = 'result show error';
+                        resultTitle.textContent = '❌ 排版失败';
+                        resultMessage.textContent = data.detail || data.error_message || '未知错误';
+                        downloadBtn.style.display = 'none';
+                    }
+                }, 500);
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                progressContainer.classList.remove('show');
+                result.classList.add('show');
+                result.className = 'result show error';
+                resultTitle.textContent = '❌ 请求失败';
+                resultMessage.textContent = error.message || '网络错误，请稍后重试';
+                downloadBtn.style.display = 'none';
+            }
+
+            formatBtn.disabled = false;
+            formatBtn.innerHTML = '开始排版';
+        });
+    </script>
+</body>
+</html>
