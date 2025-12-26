@@ -10,13 +10,15 @@
 - 按照国标自动应用公文格式
 - 混合字体处理（中文使用规定字体，英文和数字使用 Times New Roman）
 - 自动标准化括号（将各种异常括号统一转换为中文全角括号）
-- 支持 .doc 和 .docx 格式（.doc 需要 LibreOffice 自动转换）
+- **支持两种输入方式**：
+  - 文件上传：支持 .doc 和 .docx 格式（.doc 需要 LibreOffice 自动转换）
+  - 文本粘贴：直接粘贴公文文本内容进行排版
 - Web界面，支持拖拽上传
 - 即时下载排版后的文档
 
 ## 工具原理
 
-使用LLM识别并标记各个文段性质（标题、一级标题、正文等），然后采用公文规则对各个文段进行格式映射转换，最后输出排版后 Word 文稿
+使用LLM识别并标记各个文段性质（标题、一级标题、正文等），然后采用公文规则对各个文段进行格式映射转换，最后输出排版后 Word 文稿。
 
 ## 快速开始
 
@@ -139,6 +141,22 @@ python run.py
   "message": "文档格式化成功",
   "output_filename": "formatted_xxx.docx",
   "download_url": "/api/download/formatted_xxx.docx"
+}
+```
+
+### POST /api/format-text
+直接格式化粘贴的文本内容
+
+**请求**: `multipart/form-data`
+- `text`: 公文文本内容（最大 50000 字符）
+
+**响应**:
+```json
+{
+  "success": true,
+  "message": "文档格式化成功",
+  "output_filename": "formatted_text_xxx.docx",
+  "download_url": "/api/download/formatted_text_xxx.docx"
 }
 ```
 

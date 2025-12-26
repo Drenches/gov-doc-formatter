@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
@@ -121,6 +121,95 @@ async def format_document(
         if input_path.exists():
             input_path.unlink()
         raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
+
+
+@router.post("/format-text", response_model=FormatResponse)
+async def format_text(
+    text: str = Form(...),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    直接格式化粘贴的文本内容
+
+    Args:
+        text: 粘贴的公文文本内容
+        background_tasks: 后台任务
+
+    Returns:
+        FormatResponse: 格式化结果
+    """
+    # 验证文本内容
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="文本内容不能为空")
+
+    # 限制文本长度（50000字符）
+    max_chars = 50000
+    if len(text) > max_chars:
+        raise HTTPException(
+            status_code=400,
+            detail=f"文本过长，最大支持 {max_chars} 字符"
+        )
+
+    try:
+        # 1. 预处理文本，模拟 DocumentParser.get_text_for_llm() 的输出格式
+        doc_text = _preprocess_text(text)
+
+        # 2. 使用LLM分析结构
+        analyzer = LLMAnalyzer()
+        analysis_result = analyzer.analyze(doc_text)
+
+        if not analysis_result.success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"文档分析失败: {analysis_result.error_message}"
+            )
+
+        # 3. 格式化文档
+        formatter = DocumentFormatter()
+        formatter.format_document(analysis_result)
+
+        # 4. 保存输出文件
+        unique_id = str(uuid.uuid4())[:8]
+        output_filename = f"formatted_text_{unique_id}.docx"
+        output_path = OUTPUT_DIR / output_filename
+        formatter.save(output_path)
+
+        return FormatResponse(
+            success=True,
+            message="文档格式化成功",
+            output_filename=output_filename,
+            download_url=f"/api/download/{output_filename}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
+
+
+def _preprocess_text(text: str) -> str:
+    """
+    预处理文本，将纯文本转换为LLM分析所需的格式
+
+    Args:
+        text: 原始文本
+
+    Returns:
+        str: 格式化后的文本（带段落索引）
+    """
+    lines = []
+    index = 0
+
+    # 按换行符分割段落
+    paragraphs = text.split('\n')
+
+    for para in paragraphs:
+        para = para.strip()
+        if para:  # 过滤空行
+            lines.append(f"[{index}] {para}")
+            index += 1
+
+    return "\n".join(lines)
 
 
 @router.post("/analyze", response_model=AnalysisResponse)

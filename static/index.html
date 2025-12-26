@@ -264,6 +264,91 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* 标签页样式 */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 文本输入框样式 */
+        .text-input-area {
+            width: 100%;
+            min-height: 250px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .text-input-area:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .text-input-area::placeholder {
+            color: #999;
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .char-count.warning {
+            color: #f59e0b;
+        }
+
+        .char-count.error {
+            color: #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -271,20 +356,54 @@
         <h1>公文自动排版工具</h1>
         <p class="subtitle">基于AI的党政机关公文格式化服务</p>
 
-        <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">📄</div>
-            <p class="upload-text">点击或拖拽上传Word文档</p>
-            <p class="upload-hint">支持 .docx, .doc 格式，最大 10MB</p>
-        </div>
-        <input type="file" id="fileInput" accept=".docx,.doc">
-
-        <div class="file-info" id="fileInfo">
-            <span class="file-name" id="fileName"></span>
+        <!-- 标签页切换 -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="upload">文件上传</button>
+            <button class="tab-btn" data-tab="text">文本粘贴</button>
         </div>
 
-        <button class="btn btn-primary" id="formatBtn" disabled>
-            开始排版
-        </button>
+        <!-- 文件上传标签页 -->
+        <div class="tab-content active" id="uploadTab">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <p class="upload-text">点击或拖拽上传Word文档</p>
+                <p class="upload-hint">支持 .docx, .doc 格式，最大 10MB</p>
+            </div>
+            <input type="file" id="fileInput" accept=".docx,.doc">
+
+            <div class="file-info" id="fileInfo">
+                <span class="file-name" id="fileName"></span>
+            </div>
+
+            <button class="btn btn-primary" id="formatBtn" disabled>
+                开始排版
+            </button>
+        </div>
+
+        <!-- 文本粘贴标签页 -->
+        <div class="tab-content" id="textTab">
+            <textarea
+                class="text-input-area"
+                id="textInput"
+                placeholder="请在此粘贴公文内容...
+
+示例格式：
+关于XXX的通知
+
+一、总体目标
+XXXX
+
+（一）具体要求
+XXXX
+
+1. 第一点
+XXXX"></textarea>
+            <div class="char-count" id="charCount">0 / 50000 字符</div>
+
+            <button class="btn btn-primary" id="formatTextBtn" disabled>
+                开始排版
+            </button>
+        </div>
 
         <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
@@ -342,11 +461,19 @@
     </div>
 
     <script>
+        // 文件上传相关元素
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('fileInfo');
         const fileName = document.getElementById('fileName');
         const formatBtn = document.getElementById('formatBtn');
+
+        // 文本粘贴相关元素
+        const textInput = document.getElementById('textInput');
+        const charCount = document.getElementById('charCount');
+        const formatTextBtn = document.getElementById('formatTextBtn');
+
+        // 公共元素
         const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
@@ -355,7 +482,33 @@
         const resultMessage = document.getElementById('resultMessage');
         const downloadBtn = document.getElementById('downloadBtn');
 
+        // 标签页元素
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const uploadTab = document.getElementById('uploadTab');
+        const textTab = document.getElementById('textTab');
+
         let selectedFile = null;
+        const MAX_CHARS = 50000;
+
+        // 标签页切换
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const tabName = btn.dataset.tab;
+                if (tabName === 'upload') {
+                    uploadTab.classList.add('active');
+                    textTab.classList.remove('active');
+                } else {
+                    textTab.classList.add('active');
+                    uploadTab.classList.remove('active');
+                }
+
+                // 切换时隐藏结果
+                result.classList.remove('show');
+            });
+        });
 
         // 点击上传区域
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -405,12 +558,49 @@
             result.classList.remove('show');
         }
 
-        // 开始排版
+        // 文本输入监听
+        textInput.addEventListener('input', () => {
+            const len = textInput.value.length;
+            charCount.textContent = `${len} / ${MAX_CHARS} 字符`;
+
+            if (len > MAX_CHARS) {
+                charCount.className = 'char-count error';
+                formatTextBtn.disabled = true;
+            } else if (len > MAX_CHARS * 0.9) {
+                charCount.className = 'char-count warning';
+                formatTextBtn.disabled = len === 0;
+            } else {
+                charCount.className = 'char-count';
+                formatTextBtn.disabled = len === 0;
+            }
+        });
+
+        // 文件上传排版
         formatBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
 
             formatBtn.disabled = true;
             formatBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
+            await processFormat('/api/format', { file: selectedFile }, formatBtn);
+        });
+
+        // 文本粘贴排版
+        formatTextBtn.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            if (text.length > MAX_CHARS) {
+                alert(`文本长度超过限制（最大 ${MAX_CHARS} 字符）`);
+                return;
+            }
+
+            formatTextBtn.disabled = true;
+            formatTextBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
+            await processFormat('/api/format-text', { text: text }, formatTextBtn);
+        });
+
+        // 通用处理函数
+        async function processFormat(apiUrl, data, button) {
             progressContainer.classList.add('show');
             result.classList.remove('show');
 
@@ -422,7 +612,7 @@
                     progressFill.style.width = `${Math.min(progress, 90)}%`;
 
                     if (progress < 30) {
-                        progressText.textContent = '正在解析文档...';
+                        progressText.textContent = '正在解析内容...';
                     } else if (progress < 60) {
                         progressText.textContent = '正在分析文档结构...';
                     } else {
@@ -432,35 +622,46 @@
             }, 500);
 
             try {
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-
-                const response = await fetch('/api/format', {
-                    method: 'POST',
-                    body: formData
-                });
+                let response;
+                if (data.file) {
+                    // 文件上传
+                    const formData = new FormData();
+                    formData.append('file', data.file);
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    // 文本提交
+                    const formData = new FormData();
+                    formData.append('text', data.text);
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
 
                 clearInterval(progressInterval);
                 progressFill.style.width = '100%';
                 progressText.textContent = '处理完成！';
 
-                const data = await response.json();
+                const responseData = await response.json();
 
                 setTimeout(() => {
                     progressContainer.classList.remove('show');
                     result.classList.add('show');
 
-                    if (data.success) {
+                    if (responseData.success) {
                         result.className = 'result show success';
                         resultTitle.textContent = '✅ 排版成功！';
-                        resultMessage.textContent = data.message;
-                        downloadBtn.href = data.download_url;
+                        resultMessage.textContent = responseData.message;
+                        downloadBtn.href = responseData.download_url;
                         downloadBtn.style.display = 'inline-block';
-                        downloadBtn.download = data.output_filename;
+                        downloadBtn.download = responseData.output_filename;
                     } else {
                         result.className = 'result show error';
                         resultTitle.textContent = '❌ 排版失败';
-                        resultMessage.textContent = data.detail || data.error_message || '未知错误';
+                        resultMessage.textContent = responseData.detail || responseData.error_message || '未知错误';
                         downloadBtn.style.display = 'none';
                     }
                 }, 500);
@@ -475,9 +676,9 @@
                 downloadBtn.style.display = 'none';
             }
 
-            formatBtn.disabled = false;
-            formatBtn.innerHTML = '开始排版';
-        });
+            button.disabled = false;
+            button.innerHTML = '开始排版';
+        }
     </script>
 </body>
 </html>
