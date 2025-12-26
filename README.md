@@ -46,6 +46,10 @@ choco install libreoffice
 
 ### 3. 配置 API Key
 
+> 获取 API Key: https://dashscope.console.aliyun.com/
+
+#### 方式一：使用 .env 文件（推荐用于开发环境）
+
 复制 `.env.example` 为 `.env` 并填入你的通义千问 API Key：
 
 ```bash
@@ -57,7 +61,51 @@ cp .env.example .env
 DASHSCOPE_API_KEY=your_api_key_here
 ```
 
-> 获取 API Key: https://dashscope.console.aliyun.com/
+#### 方式二：设置系统环境变量（推荐用于生产环境）
+
+如果您希望 API Key 环境变量在当前用户的所有新会话中生效，可以添加永久性环境变量。
+
+**Linux/macOS/WSL:**
+
+执行以下命令将环境变量设置追加到 `~/.bashrc` 文件中：
+
+```bash
+# 用您的百炼API Key代替 YOUR_DASHSCOPE_API_KEY
+echo "export DASHSCOPE_API_KEY='YOUR_DASHSCOPE_API_KEY'" >> ~/.bashrc
+```
+
+或者手动编辑 `~/.bashrc` 文件，添加以下内容：
+
+```bash
+export DASHSCOPE_API_KEY='YOUR_DASHSCOPE_API_KEY'
+```
+
+执行以下命令使变更生效：
+
+```bash
+source ~/.bashrc
+```
+
+重新打开一个终端窗口，运行以下命令检查环境变量是否生效：
+
+```bash
+echo $DASHSCOPE_API_KEY
+```
+
+**Windows:**
+
+通过系统设置添加环境变量：
+1. 右键点击"此电脑" → "属性" → "高级系统设置"
+2. 点击"环境变量"
+3. 在"用户变量"中点击"新建"
+4. 变量名：`DASHSCOPE_API_KEY`，变量值：你的 API Key
+5. 点击确定保存
+
+或者使用 PowerShell：
+
+```powershell
+[Environment]::SetEnvironmentVariable("DASHSCOPE_API_KEY", "YOUR_DASHSCOPE_API_KEY", "User")
+```
 
 ### 4. 启动服务
 
