@@ -1,6 +1,8 @@
 # 公文自动排版工具
 
-基于大模型（通义千问）的党政机关公文自动排版工具，支持上传Word文档，自动识别文档结构并按照《党政机关公文格式》(GB/T 9704-2012) 国家标准进行排版。
+基于大模型（通义千问）的党政机关公文自动排版agent工具，支持上传Word文档，自动识别文档结构并按照《党政机关公文格式》(GB/T 9704-2012) 国家标准进行排版。
+
+（目前还处于初级阶段，正在持续优化中）
 
 ## 功能特点
 
@@ -11,6 +13,10 @@
 - 支持 .doc 和 .docx 格式（.doc 需要 LibreOffice 自动转换）
 - Web界面，支持拖拽上传
 - 即时下载排版后的文档
+
+## 工具原理
+
+使用LLM识别并标记各个文段性质（标题、一级标题、正文等），然后采用公文规则对各个文段进行格式映射转换，最后输出排版后 Word 文稿
 
 ## 快速开始
 
@@ -46,10 +52,6 @@ choco install libreoffice
 
 ### 3. 配置 API Key
 
-> 获取 API Key: https://dashscope.console.aliyun.com/
-
-#### 方式一：使用 .env 文件（推荐用于开发环境）
-
 复制 `.env.example` 为 `.env` 并填入你的通义千问 API Key：
 
 ```bash
@@ -61,51 +63,9 @@ cp .env.example .env
 DASHSCOPE_API_KEY=your_api_key_here
 ```
 
-#### 方式二：设置系统环境变量（推荐用于生产环境）
+也可以将 API Key 直接配置到系统环境变量，具体操作可以参考阿里云百炼官网-API参考：
 
-如果您希望 API Key 环境变量在当前用户的所有新会话中生效，可以添加永久性环境变量。
-
-**Linux/macOS/WSL:**
-
-执行以下命令将环境变量设置追加到 `~/.bashrc` 文件中：
-
-```bash
-# 用您的百炼API Key代替 YOUR_DASHSCOPE_API_KEY
-echo "export DASHSCOPE_API_KEY='YOUR_DASHSCOPE_API_KEY'" >> ~/.bashrc
-```
-
-或者手动编辑 `~/.bashrc` 文件，添加以下内容：
-
-```bash
-export DASHSCOPE_API_KEY='YOUR_DASHSCOPE_API_KEY'
-```
-
-执行以下命令使变更生效：
-
-```bash
-source ~/.bashrc
-```
-
-重新打开一个终端窗口，运行以下命令检查环境变量是否生效：
-
-```bash
-echo $DASHSCOPE_API_KEY
-```
-
-**Windows:**
-
-通过系统设置添加环境变量：
-1. 右键点击"此电脑" → "属性" → "高级系统设置"
-2. 点击"环境变量"
-3. 在"用户变量"中点击"新建"
-4. 变量名：`DASHSCOPE_API_KEY`，变量值：你的 API Key
-5. 点击确定保存
-
-或者使用 PowerShell：
-
-```powershell
-[Environment]::SetEnvironmentVariable("DASHSCOPE_API_KEY", "YOUR_DASHSCOPE_API_KEY", "User")
-```
+> 获取 API Key: https://dashscope.console.aliyun.com/
 
 ### 4. 启动服务
 
