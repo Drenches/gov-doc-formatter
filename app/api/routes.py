@@ -3,19 +3,99 @@ API路由模块
 """
 import uuid
 import shutil
+import os
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
+from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS, reload_api_key
 from app.core.document_parser import DocumentParser
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.formatter import DocumentFormatter
 from app.models.schemas import FormatResponse, HealthResponse, AnalysisResponse
 
 router = APIRouter()
+
+
+# ==================== 配置相关接口 ====================
+
+class ConfigStatusResponse(BaseModel):
+    """配置状态响应"""
+    configured: bool
+    message: str = ""
+
+
+class SaveConfigRequest(BaseModel):
+    """保存配置请求"""
+    api_key: str
+
+
+class SaveConfigResponse(BaseModel):
+    """保存配置响应"""
+    success: bool
+    message: str = ""
+
+
+@router.get("/config/status", response_model=ConfigStatusResponse)
+async def get_config_status():
+    """检查是否已配置 API Key"""
+    try:
+        from config_manager import config_manager
+        has_key = config_manager.has_api_key()
+        return ConfigStatusResponse(
+            configured=has_key,
+            message="已配置" if has_key else "未配置"
+        )
+    except ImportError:
+        # 开发模式下可能没有 config_manager
+        api_key = os.getenv("DASHSCOPE_API_KEY", "")
+        has_key = bool(api_key)
+        return ConfigStatusResponse(
+            configured=has_key,
+            message="已配置（环境变量）" if has_key else "未配置"
+        )
+
+
+@router.post("/config/save", response_model=SaveConfigResponse)
+async def save_config(request: SaveConfigRequest):
+    """保存 API Key 配置"""
+    api_key = request.api_key.strip()
+
+    if not api_key:
+        return SaveConfigResponse(
+            success=False,
+            message="API Key 不能为空"
+        )
+
+    if len(api_key) < 10:
+        return SaveConfigResponse(
+            success=False,
+            message="API Key 格式不正确"
+        )
+
+    try:
+        from config_manager import config_manager
+        config_manager.set_api_key(api_key)
+
+        # 更新环境变量和配置
+        os.environ["DASHSCOPE_API_KEY"] = api_key
+        reload_api_key()
+
+        return SaveConfigResponse(
+            success=True,
+            message="配置保存成功"
+        )
+    except Exception as e:
+        return SaveConfigResponse(
+            success=False,
+            message=f"保存失败: {str(e)}"
+        )
+
+
+# ==================== 原有接口 ====================
 
 
 def cleanup_file(file_path: Path):

@@ -15,6 +15,7 @@
   - 文本粘贴：直接粘贴公文文本内容进行排版
 - Web界面，支持拖拽上传
 - 即时下载排版后的文档
+- **支持打包成 Windows EXE**，方便非技术用户使用
 
 ## 工具原理
 
@@ -193,6 +194,40 @@ python run.py
 - Word处理: python-docx
 - 文档转换: LibreOffice（用于 .doc 转 .docx）
 - 前端: 原生 HTML/CSS/JavaScript
+- 打包工具: PyInstaller
+
+## 打包成 EXE
+
+支持将应用打包成独立的 Windows 可执行文件，方便分发给非技术用户使用。
+
+### 打包步骤
+
+1. **安装 PyInstaller**
+```bash
+pip install pyinstaller
+```
+
+2. **在 Windows 环境下执行打包**
+```bash
+pyinstaller gw-formatter.spec
+```
+
+3. **生成的 EXE 位于 `dist/` 目录**
+
+### EXE 使用说明
+
+1. 双击运行 `公文自动排版工具.exe`
+2. 首次使用时会打开浏览器，显示 API Key 配置页面
+3. 输入通义千问 API Key 并保存
+4. 之后每次打开会自动进入主界面
+
+### 配置文件位置
+
+EXE 运行时会在用户目录下创建配置文件夹：
+- Windows: `C:\Users\<用户名>\.公文排版工具\`
+  - `config.json` - API Key 配置
+  - `uploads/` - 临时上传目录
+  - `outputs/` - 输出文件目录
 
 ## License
 

@@ -461,224 +461,249 @@ XXXX"></textarea>
     </div>
 
     <script>
-        // 文件上传相关元素
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const formatBtn = document.getElementById('formatBtn');
+        // 页面加载时检查配置状态
+        async function checkConfigAndInit() {
+            try {
+                const response = await fetch('/api/config/status');
+                const data = await response.json();
 
-        // 文本粘贴相关元素
-        const textInput = document.getElementById('textInput');
-        const charCount = document.getElementById('charCount');
-        const formatTextBtn = document.getElementById('formatTextBtn');
-
-        // 公共元素
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        const result = document.getElementById('result');
-        const resultTitle = document.getElementById('resultTitle');
-        const resultMessage = document.getElementById('resultMessage');
-        const downloadBtn = document.getElementById('downloadBtn');
-
-        // 标签页元素
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        const uploadTab = document.getElementById('uploadTab');
-        const textTab = document.getElementById('textTab');
-
-        let selectedFile = null;
-        const MAX_CHARS = 50000;
-
-        // 标签页切换
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                tabBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                const tabName = btn.dataset.tab;
-                if (tabName === 'upload') {
-                    uploadTab.classList.add('active');
-                    textTab.classList.remove('active');
-                } else {
-                    textTab.classList.add('active');
-                    uploadTab.classList.remove('active');
+                if (!data.configured) {
+                    // 未配置，跳转到设置页面
+                    window.location.href = '/static/setup.html';
+                    return;
                 }
 
-                // 切换时隐藏结果
-                result.classList.remove('show');
-            });
-        });
-
-        // 点击上传区域
-        uploadArea.addEventListener('click', () => fileInput.click());
-
-        // 拖拽事件
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
+                // 已配置，初始化页面
+                initPage();
+            } catch (error) {
+                console.log('检查配置状态失败，继续加载页面');
+                initPage();
             }
-        });
-
-        // 文件选择
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        function handleFile(file) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (!['docx', 'doc'].includes(ext)) {
-                alert('请选择 .docx 或 .doc 格式的文件');
-                return;
-            }
-
-            if (file.size > 10 * 1024 * 1024) {
-                alert('文件大小不能超过 10MB');
-                return;
-            }
-
-            selectedFile = file;
-            fileName.textContent = `已选择: ${file.name}`;
-            fileInfo.classList.add('show');
-            formatBtn.disabled = false;
-            result.classList.remove('show');
         }
 
-        // 文本输入监听
-        textInput.addEventListener('input', () => {
-            const len = textInput.value.length;
-            charCount.textContent = `${len} / ${MAX_CHARS} 字符`;
+        function initPage() {
+            // 文件上传相关元素
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const formatBtn = document.getElementById('formatBtn');
 
-            if (len > MAX_CHARS) {
-                charCount.className = 'char-count error';
-                formatTextBtn.disabled = true;
-            } else if (len > MAX_CHARS * 0.9) {
-                charCount.className = 'char-count warning';
-                formatTextBtn.disabled = len === 0;
-            } else {
-                charCount.className = 'char-count';
-                formatTextBtn.disabled = len === 0;
-            }
-        });
+            // 文本粘贴相关元素
+            const textInput = document.getElementById('textInput');
+            const charCount = document.getElementById('charCount');
+            const formatTextBtn = document.getElementById('formatTextBtn');
 
-        // 文件上传排版
-        formatBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
+            // 公共元素
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const result = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultMessage = document.getElementById('resultMessage');
+            const downloadBtn = document.getElementById('downloadBtn');
 
-            formatBtn.disabled = true;
-            formatBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
-            await processFormat('/api/format', { file: selectedFile }, formatBtn);
-        });
+            // 标签页元素
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const uploadTab = document.getElementById('uploadTab');
+            const textTab = document.getElementById('textTab');
 
-        // 文本粘贴排版
-        formatTextBtn.addEventListener('click', async () => {
-            const text = textInput.value.trim();
-            if (!text) return;
+            let selectedFile = null;
+            const MAX_CHARS = 50000;
 
-            if (text.length > MAX_CHARS) {
-                alert(`文本长度超过限制（最大 ${MAX_CHARS} 字符）`);
-                return;
-            }
+            // 标签页切换
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
 
-            formatTextBtn.disabled = true;
-            formatTextBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
-            await processFormat('/api/format-text', { text: text }, formatTextBtn);
-        });
-
-        // 通用处理函数
-        async function processFormat(apiUrl, data, button) {
-            progressContainer.classList.add('show');
-            result.classList.remove('show');
-
-            // 模拟进度
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                if (progress < 90) {
-                    progress += Math.random() * 15;
-                    progressFill.style.width = `${Math.min(progress, 90)}%`;
-
-                    if (progress < 30) {
-                        progressText.textContent = '正在解析内容...';
-                    } else if (progress < 60) {
-                        progressText.textContent = '正在分析文档结构...';
+                    const tabName = btn.dataset.tab;
+                    if (tabName === 'upload') {
+                        uploadTab.classList.add('active');
+                        textTab.classList.remove('active');
                     } else {
-                        progressText.textContent = '正在应用公文格式...';
+                        textTab.classList.add('active');
+                        uploadTab.classList.remove('active');
                     }
-                }
-            }, 500);
 
-            try {
-                let response;
-                if (data.file) {
-                    // 文件上传
-                    const formData = new FormData();
-                    formData.append('file', data.file);
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        body: formData
-                    });
+                    // 切换时隐藏结果
+                    result.classList.remove('show');
+                });
+            });
+
+            // 点击上传区域
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            // 拖拽事件
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            // 文件选择
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            function handleFile(file) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['docx', 'doc'].includes(ext)) {
+                    alert('请选择 .docx 或 .doc 格式的文件');
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('文件大小不能超过 10MB');
+                    return;
+                }
+
+                selectedFile = file;
+                fileName.textContent = `已选择: ${file.name}`;
+                fileInfo.classList.add('show');
+                formatBtn.disabled = false;
+                result.classList.remove('show');
+            }
+
+            // 文本输入监听
+            textInput.addEventListener('input', () => {
+                const len = textInput.value.length;
+                charCount.textContent = `${len} / ${MAX_CHARS} 字符`;
+
+                if (len > MAX_CHARS) {
+                    charCount.className = 'char-count error';
+                    formatTextBtn.disabled = true;
+                } else if (len > MAX_CHARS * 0.9) {
+                    charCount.className = 'char-count warning';
+                    formatTextBtn.disabled = len === 0;
                 } else {
-                    // 文本提交
-                    const formData = new FormData();
-                    formData.append('text', data.text);
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        body: formData
-                    });
+                    charCount.className = 'char-count';
+                    formatTextBtn.disabled = len === 0;
+                }
+            });
+
+            // 文件上传排版
+            formatBtn.addEventListener('click', async () => {
+                if (!selectedFile) return;
+
+                formatBtn.disabled = true;
+                formatBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
+                await processFormat('/api/format', { file: selectedFile }, formatBtn);
+            });
+
+            // 文本粘贴排版
+            formatTextBtn.addEventListener('click', async () => {
+                const text = textInput.value.trim();
+                if (!text) return;
+
+                if (text.length > MAX_CHARS) {
+                    alert(`文本长度超过限制（最大 ${MAX_CHARS} 字符）`);
+                    return;
                 }
 
-                clearInterval(progressInterval);
-                progressFill.style.width = '100%';
-                progressText.textContent = '处理完成！';
+                formatTextBtn.disabled = true;
+                formatTextBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
+                await processFormat('/api/format-text', { text: text }, formatTextBtn);
+            });
 
-                const responseData = await response.json();
+            // 通用处理函数
+            async function processFormat(apiUrl, data, button) {
+                progressContainer.classList.add('show');
+                result.classList.remove('show');
 
-                setTimeout(() => {
-                    progressContainer.classList.remove('show');
-                    result.classList.add('show');
+                // 模拟进度
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    if (progress < 90) {
+                        progress += Math.random() * 15;
+                        progressFill.style.width = `${Math.min(progress, 90)}%`;
 
-                    if (responseData.success) {
-                        result.className = 'result show success';
-                        resultTitle.textContent = '✅ 排版成功！';
-                        resultMessage.textContent = responseData.message;
-                        downloadBtn.href = responseData.download_url;
-                        downloadBtn.style.display = 'inline-block';
-                        downloadBtn.download = responseData.output_filename;
-                    } else {
-                        result.className = 'result show error';
-                        resultTitle.textContent = '❌ 排版失败';
-                        resultMessage.textContent = responseData.detail || responseData.error_message || '未知错误';
-                        downloadBtn.style.display = 'none';
+                        if (progress < 30) {
+                            progressText.textContent = '正在解析内容...';
+                        } else if (progress < 60) {
+                            progressText.textContent = '正在分析文档结构...';
+                        } else {
+                            progressText.textContent = '正在应用公文格式...';
+                        }
                     }
                 }, 500);
 
-            } catch (error) {
-                clearInterval(progressInterval);
-                progressContainer.classList.remove('show');
-                result.classList.add('show');
-                result.className = 'result show error';
-                resultTitle.textContent = '❌ 请求失败';
-                resultMessage.textContent = error.message || '网络错误，请稍后重试';
-                downloadBtn.style.display = 'none';
-            }
+                try {
+                    let response;
+                    if (data.file) {
+                        // 文件上传
+                        const formData = new FormData();
+                        formData.append('file', data.file);
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } else {
+                        // 文本提交
+                        const formData = new FormData();
+                        formData.append('text', data.text);
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
 
-            button.disabled = false;
-            button.innerHTML = '开始排版';
+                    clearInterval(progressInterval);
+                    progressFill.style.width = '100%';
+                    progressText.textContent = '处理完成！';
+
+                    const responseData = await response.json();
+
+                    setTimeout(() => {
+                        progressContainer.classList.remove('show');
+                        result.classList.add('show');
+
+                        if (responseData.success) {
+                            result.className = 'result show success';
+                            resultTitle.textContent = '✅ 排版成功！';
+                            resultMessage.textContent = responseData.message;
+                            downloadBtn.href = responseData.download_url;
+                            downloadBtn.style.display = 'inline-block';
+                            downloadBtn.download = responseData.output_filename;
+                        } else {
+                            result.className = 'result show error';
+                            resultTitle.textContent = '❌ 排版失败';
+                            resultMessage.textContent = responseData.detail || responseData.error_message || '未知错误';
+                            downloadBtn.style.display = 'none';
+                        }
+                    }, 500);
+
+                } catch (error) {
+                    clearInterval(progressInterval);
+                    progressContainer.classList.remove('show');
+                    result.classList.add('show');
+                    result.className = 'result show error';
+                    resultTitle.textContent = '❌ 请求失败';
+                    resultMessage.textContent = error.message || '网络错误，请稍后重试';
+                    downloadBtn.style.display = 'none';
+                }
+
+                button.disabled = false;
+                button.innerHTML = '开始排版';
+            }
         }
+
+        // 页面加载时执行
+        checkConfigAndInit();
     </script>
 </body>
 </html>

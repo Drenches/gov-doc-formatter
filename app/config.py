@@ -2,25 +2,87 @@
 配置模块 - 管理应用配置和环境变量
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
-# 项目根目录
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+def get_base_dir() -> Path:
+    """
+    获取应用程序基础目录
+
+    - 开发模式：项目根目录
+    - 打包模式：EXE 临时解压目录
+    """
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的路径
+        return Path(sys._MEIPASS)
+    else:
+        # 开发模式
+        return Path(__file__).resolve().parent.parent
+
+
+def get_data_dir() -> Path:
+    """
+    获取数据存储目录
+
+    - 开发模式：项目根目录
+    - 打包模式：用户目录下的应用数据目录
+    """
+    if getattr(sys, 'frozen', False):
+        # 打包模式：使用用户目录
+        if sys.platform == 'win32':
+            base = Path(os.environ.get('USERPROFILE', Path.home()))
+        else:
+            base = Path.home()
+        return base / ".公文排版工具"
+    else:
+        # 开发模式：项目根目录
+        return Path(__file__).resolve().parent.parent
+
+
+# 项目根目录（用于访问 app 和 static）
+BASE_DIR = get_base_dir()
+
+# 数据目录（用于 uploads 和 outputs）
+DATA_DIR = get_data_dir()
 
 # 文件目录配置
-UPLOAD_DIR = BASE_DIR / "uploads"
-OUTPUT_DIR = BASE_DIR / "outputs"
+UPLOAD_DIR = DATA_DIR / "uploads"
+OUTPUT_DIR = DATA_DIR / "outputs"
 
 # 确保目录存在
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_api_key() -> str:
+    """
+    获取 API Key
+
+    优先级：
+    1. 环境变量 DASHSCOPE_API_KEY
+    2. 本地配置文件
+    """
+    # 首先检查环境变量
+    api_key = os.getenv("DASHSCOPE_API_KEY", "")
+    if api_key:
+        return api_key
+
+    # 然后检查本地配置
+    try:
+        # 延迟导入避免循环依赖
+        from config_manager import config_manager
+        return config_manager.get_api_key() or ""
+    except ImportError:
+        return ""
+
 
 # 通义千问 API 配置
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
+DASHSCOPE_API_KEY = get_api_key()
 
 # 模型配置
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen-turbo")  # 可选: qwen-turbo, qwen-plus, qwen-max
@@ -30,3 +92,12 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 # 允许的文件类型
 ALLOWED_EXTENSIONS = {".docx", ".doc"}
+
+
+def reload_api_key():
+    """重新加载 API Key（用于配置更新后）"""
+    global DASHSCOPE_API_KEY
+    DASHSCOPE_API_KEY = get_api_key()
+    # 同时更新环境变量
+    if DASHSCOPE_API_KEY:
+        os.environ["DASHSCOPE_API_KEY"] = DASHSCOPE_API_KEY
