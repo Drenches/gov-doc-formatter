@@ -21,7 +21,52 @@
 
 使用LLM识别并标记各个文段性质（标题、一级标题、正文等），然后采用公文规则对各个文段进行格式映射转换，最后输出排版后 Word 文稿。
 
-## 快速开始
+---
+
+## 使用方式
+
+本工具提供两种使用方式：**直接使用打包版** 和 **开发模式运行**。
+
+---
+
+## 方式一：直接使用打包版（推荐普通用户）
+
+适合不熟悉代码的用户，无需安装 Python 和任何依赖。
+
+### 使用步骤
+
+1. **下载发布包**
+   - 从 [Releases](../../releases) 页面下载最新的 `公文自动排版工具.zip`
+   - 或直接使用项目中已有的打包文件
+
+2. **解压并运行**
+   ```
+   解压 公文自动排版工具.zip
+   双击运行 公文自动排版工具.exe
+   ```
+
+3. **首次配置**
+   - 程序启动后会自动打开浏览器
+   - 首次使用需要配置通义千问 API Key
+   - API Key 获取地址：https://dashscope.console.aliyun.com/
+
+4. **开始使用**
+   - 配置完成后自动跳转到主界面
+   - 上传 Word 文档或粘贴文本即可自动排版
+
+### 配置文件位置
+
+EXE 运行时会在用户目录下创建配置文件夹：
+- Windows: `C:\Users\<用户名>\.公文排版工具\`
+  - `config.json` - API Key 配置
+  - `uploads/` - 临时上传目录
+  - `outputs/` - 输出文件目录
+
+---
+
+## 方式二：开发模式运行（开发者/高级用户）
+
+适合需要修改代码或进行二次开发的用户。
 
 ### 1. 安装 Python 依赖
 
@@ -81,6 +126,48 @@ python run.py
 - 前端页面: http://localhost:8000/static/index.html
 - API文档: http://localhost:8000/docs
 
+---
+
+## 打包成 EXE（开发者）
+
+如果你修改了代码，需要重新打包成 EXE 分发给用户。
+
+### 一键打包
+
+项目提供了一键打包脚本，在 Windows 环境下执行：
+
+```bash
+.\build.bat
+```
+
+脚本会自动完成：
+1. 清理旧的构建文件
+2. 生成应用图标
+3. 执行 PyInstaller 打包
+4. 压缩成 ZIP 文件
+
+最终生成的 `公文自动排版工具.zip` 可直接分发给用户。
+
+### 手动打包
+
+如需手动打包，执行以下步骤：
+
+```bash
+# 1. 安装打包依赖
+pip install pyinstaller pillow
+
+# 2. 生成图标（如果没有）
+python create_icon.py
+
+# 3. 执行打包
+pyinstaller gw-formatter.spec
+
+# 4. 打包成 ZIP
+powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPath "公文自动排版工具.zip" -Force
+```
+
+---
+
 ## 公文格式规范
 
 | 元素 | 字体 | 字号 | 其他要求 |
@@ -98,6 +185,8 @@ python run.py
 - 页边距: 上37mm、下35mm、左28mm、右26mm
 - 版心: 每页22行，每行28字
 - 行距: 固定值28磅
+
+---
 
 ## 项目结构
 
@@ -118,14 +207,21 @@ python run.py
 │   └── utils/
 │       └── helpers.py       # 辅助函数
 ├── static/
-│   └── index.html           # 前端页面
+│   ├── index.html           # 主页面
+│   └── setup.html           # API Key 配置页面
 ├── uploads/                 # 上传文件临时目录
 ├── outputs/                 # 输出文件目录
-├── requirements.txt         # Python依赖包
-├── .env.example            # 环境变量示例
-├── run.py                  # 启动脚本
-└── README.md               # 项目说明
+├── build.bat               # 一键打包脚本
+├── gw-formatter.spec       # PyInstaller 打包配置
+├── create_icon.py          # 图标生成脚本
+├── config_manager.py       # 配置管理器
+├── requirements.txt        # Python依赖包
+├── .env.example           # 环境变量示例
+├── run.py                 # 启动脚本
+└── README.md              # 项目说明
 ```
+
+---
 
 ## API 接口
 
@@ -170,6 +266,8 @@ python run.py
 ### GET /api/health
 健康检查
 
+---
+
 ## 注意事项
 
 1. **字体安装**: 确保系统安装了以下字体
@@ -187,6 +285,8 @@ python run.py
 
 4. **括号标准化**: 系统会自动将各种异常括号（半角、特殊编码等）统一转换为标准中文全角括号
 
+---
+
 ## 技术栈
 
 - 后端: Python + FastAPI
@@ -195,39 +295,9 @@ python run.py
 - 文档转换: LibreOffice（用于 .doc 转 .docx）
 - 前端: 原生 HTML/CSS/JavaScript
 - 打包工具: PyInstaller
+- WSGI服务器: waitress（打包模式）/ uvicorn（开发模式）
 
-## 打包成 EXE
-
-支持将应用打包成独立的 Windows 可执行文件，方便分发给非技术用户使用。
-
-### 打包步骤
-
-1. **安装 PyInstaller**
-```bash
-pip install pyinstaller
-```
-
-2. **在 Windows 环境下执行打包**
-```bash
-pyinstaller gw-formatter.spec
-```
-
-3. **生成的 EXE 位于 `dist/` 目录**
-
-### EXE 使用说明
-
-1. 双击运行 `公文自动排版工具.exe`
-2. 首次使用时会打开浏览器，显示 API Key 配置页面
-3. 输入通义千问 API Key 并保存
-4. 之后每次打开会自动进入主界面
-
-### 配置文件位置
-
-EXE 运行时会在用户目录下创建配置文件夹：
-- Windows: `C:\Users\<用户名>\.公文排版工具\`
-  - `config.json` - API Key 配置
-  - `uploads/` - 临时上传目录
-  - `outputs/` - 输出文件目录
+---
 
 ## License
 
