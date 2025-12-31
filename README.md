@@ -85,7 +85,7 @@
 ### 使用步骤
 
 1. **下载发布包**
-   - 从 [Releases](../../releases) 页面下载最新的 `公文自动排版工具.zip`
+   - 从 [Releases](../../releases) 页面下载最新的 `GovDocFormatter.zip`
    - 或直接使用项目中已有的打包文件
 
 2. **解压并运行**
