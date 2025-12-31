@@ -15,7 +15,7 @@ from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
 from app.core.document_parser import DocumentParser
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.formatter import DocumentFormatter
-from app.models.schemas import FormatResponse, HealthResponse, AnalysisResponse
+from app.models.schemas import FormatResponse, HealthResponse, AnalysisResponse, ProcessingInfo
 
 router = APIRouter()
 
@@ -26,17 +26,113 @@ class ConfigStatusResponse(BaseModel):
     """配置状态响应"""
     configured: bool
     message: str = ""
+    data_dir: str = ""
+    default_data_dir: str = ""
 
 
 class SaveConfigRequest(BaseModel):
     """保存配置请求"""
     api_key: str
+    data_dir: Optional[str] = None
 
 
 class SaveConfigResponse(BaseModel):
     """保存配置响应"""
     success: bool
     message: str = ""
+
+
+class BrowseFolderResponse(BaseModel):
+    """文件夹选择响应"""
+    success: bool
+    path: str = ""
+    message: str = ""
+
+
+@router.get("/config/browse-folder", response_model=BrowseFolderResponse)
+async def browse_folder():
+    """打开系统文件夹选择对话框"""
+    import sys
+    if sys.platform != 'win32':
+        return BrowseFolderResponse(
+            success=False,
+            message="此功能仅支持 Windows 系统"
+        )
+
+    try:
+        import threading
+        import queue
+        import ctypes
+
+        # 启用 DPI 感知，使对话框跟随系统缩放
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()  # 备用方案
+            except Exception:
+                pass
+
+        result_queue = queue.Queue()
+
+        def show_dialog():
+            try:
+                import tkinter as tk
+                from tkinter import filedialog
+
+                root = tk.Tk()
+                root.withdraw()  # 隐藏主窗口
+                root.attributes('-topmost', True)  # 置顶
+
+                folder_path = filedialog.askdirectory(
+                    title="选择数据存储位置",
+                    mustexist=False
+                )
+
+                root.destroy()
+                result_queue.put(('success', folder_path or ''))
+            except Exception as e:
+                result_queue.put(('error', str(e)))
+
+        # 在单独的线程中运行对话框
+        dialog_thread = threading.Thread(target=show_dialog)
+        dialog_thread.start()
+        dialog_thread.join(timeout=120)
+
+        if dialog_thread.is_alive():
+            return BrowseFolderResponse(
+                success=False,
+                message="选择超时，请重试"
+            )
+
+        try:
+            status, result = result_queue.get_nowait()
+            if status == 'success' and result:
+                return BrowseFolderResponse(
+                    success=True,
+                    path=result
+                )
+            elif status == 'error':
+                return BrowseFolderResponse(
+                    success=False,
+                    message=f"打开文件夹选择器失败: {result}"
+                )
+            else:
+                return BrowseFolderResponse(
+                    success=False,
+                    message="未选择文件夹"
+                )
+        except queue.Empty:
+            return BrowseFolderResponse(
+                success=False,
+                message="未获取到选择结果"
+            )
+
+    except Exception as e:
+        return BrowseFolderResponse(
+            success=False,
+            message=f"打开文件夹选择器失败: {str(e)}"
+        )
 
 
 @router.get("/config/status", response_model=ConfigStatusResponse)
@@ -47,7 +143,9 @@ async def get_config_status():
         has_key = config_manager.has_api_key()
         return ConfigStatusResponse(
             configured=has_key,
-            message="已配置" if has_key else "未配置"
+            message="已配置" if has_key else "未配置",
+            data_dir=config_manager.get_data_dir(),
+            default_data_dir=config_manager.get_default_data_dir_str()
         )
     except ImportError:
         # 开发模式下可能没有 config_manager
@@ -55,13 +153,15 @@ async def get_config_status():
         has_key = bool(api_key)
         return ConfigStatusResponse(
             configured=has_key,
-            message="已配置（环境变量）" if has_key else "未配置"
+            message="已配置（环境变量）" if has_key else "未配置",
+            data_dir="",
+            default_data_dir=""
         )
 
 
 @router.post("/config/save", response_model=SaveConfigResponse)
 async def save_config(request: SaveConfigRequest):
-    """保存 API Key 配置"""
+    """保存 API Key 和数据目录配置"""
     api_key = request.api_key.strip()
 
     if not api_key:
@@ -78,6 +178,30 @@ async def save_config(request: SaveConfigRequest):
 
     try:
         from config_manager import config_manager
+
+        # 如果用户指定了数据目录，先设置数据目录
+        if request.data_dir and request.data_dir.strip():
+            data_dir = request.data_dir.strip()
+            # 验证路径是否有效
+            from pathlib import Path
+            data_path = Path(data_dir)
+
+            # 自动在用户选择的目录下创建"公文自动排版工具"子文件夹
+            # 避免文件散落在用户选择的目录中
+            if not data_path.name == "公文自动排版工具":
+                data_path = data_path / "公文自动排版工具"
+
+            try:
+                # 尝试创建目录（如果不存在）
+                data_path.mkdir(parents=True, exist_ok=True)
+                config_manager.set_data_dir(str(data_path))
+            except Exception as e:
+                return SaveConfigResponse(
+                    success=False,
+                    message=f"数据目录无效或无法创建: {str(e)}"
+                )
+
+        # 保存 API Key
         config_manager.set_api_key(api_key)
 
         # 更新环境变量和配置
@@ -164,7 +288,7 @@ async def format_document(
         parser = DocumentParser(input_path)
         doc_text = parser.get_text_for_llm()
 
-        # 2. 使用LLM分析结构
+        # 2. 使用LLM分析结构（现在通过 Multi-Agent 系统）
         analyzer = LLMAnalyzer()
         analysis_result = analyzer.analyze(doc_text)
 
@@ -173,6 +297,9 @@ async def format_document(
                 status_code=500,
                 detail=f"文档分析失败: {analysis_result.error_message}"
             )
+
+        # 获取处理过程信息
+        process_info = analyzer.get_last_process_info()
 
         # 3. 格式化文档
         formatter = DocumentFormatter()
@@ -187,11 +314,22 @@ async def format_document(
         if background_tasks:
             background_tasks.add_task(cleanup_file, input_path)
 
+        # 构建处理信息
+        processing_info = None
+        if process_info:
+            processing_info = ProcessingInfo(
+                was_cleaned=process_info.get("was_cleaned", False),
+                original_confidence=process_info.get("router_confidence", 0.0),
+                retry_count=process_info.get("retry_count", 0),
+                issues_fixed=process_info.get("issues_fixed", [])
+            )
+
         return FormatResponse(
             success=True,
             message="文档格式化成功",
             output_filename=output_filename,
-            download_url=f"/api/download/{output_filename}"
+            download_url=f"/api/download/{output_filename}",
+            processing_info=processing_info
         )
 
     except HTTPException:
@@ -234,7 +372,7 @@ async def format_text(
         # 1. 预处理文本，模拟 DocumentParser.get_text_for_llm() 的输出格式
         doc_text = _preprocess_text(text)
 
-        # 2. 使用LLM分析结构
+        # 2. 使用LLM分析结构（现在通过 Multi-Agent 系统）
         analyzer = LLMAnalyzer()
         analysis_result = analyzer.analyze(doc_text)
 
@@ -243,6 +381,9 @@ async def format_text(
                 status_code=500,
                 detail=f"文档分析失败: {analysis_result.error_message}"
             )
+
+        # 获取处理过程信息
+        process_info = analyzer.get_last_process_info()
 
         # 3. 格式化文档
         formatter = DocumentFormatter()
@@ -254,11 +395,22 @@ async def format_text(
         output_path = OUTPUT_DIR / output_filename
         formatter.save(output_path)
 
+        # 构建处理信息
+        processing_info = None
+        if process_info:
+            processing_info = ProcessingInfo(
+                was_cleaned=process_info.get("was_cleaned", False),
+                original_confidence=process_info.get("router_confidence", 0.0),
+                retry_count=process_info.get("retry_count", 0),
+                issues_fixed=process_info.get("issues_fixed", [])
+            )
+
         return FormatResponse(
             success=True,
             message="文档格式化成功",
             output_filename=output_filename,
-            download_url=f"/api/download/{output_filename}"
+            download_url=f"/api/download/{output_filename}",
+            processing_info=processing_info
         )
 
     except HTTPException:

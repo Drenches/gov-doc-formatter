@@ -6,6 +6,11 @@
 
 ## 功能特点
 
+- **Multi-Agent 智能处理系统**：自动识别并处理不规范的输入文本
+  - RouterAgent：判断文本是否符合公文规范
+  - CleanerAgent：清洗 Markdown、emoji 等非公文格式（条件触发）
+  - MarkerAgent：识别文档结构（标题、正文、发文机关等）
+  - ValidatorAgent：校验分析结果，支持自动重试
 - 自动识别公文结构（标题、一至四级标题、正文、发文机关、日期）
 - 按照国标自动应用公文格式
 - 混合字体处理（中文使用规定字体，英文和数字使用 Times New Roman）
@@ -19,7 +24,51 @@
 
 ## 工具原理
 
-使用LLM识别并标记各个文段性质（标题、一级标题、正文等），然后采用公文规则对各个文段进行格式映射转换，最后输出排版后 Word 文稿。
+### Multi-Agent 架构
+
+```
+用户输入文本
+    ↓
+┌─────────────────────────────────────────┐
+│  Agent 1: RouterAgent (行文规范性判断)   │
+│  - 判断是否符合公文风格                  │
+│  - 输出: is_official_style + confidence │
+└─────────────────────────────────────────┘
+    ↓
+    ├─ is_official_style=true & confidence≥0.85
+    │       ↓
+    │   直接进入 Agent 3
+    │
+    └─ is_official_style=false 或 confidence<0.85
+            ↓
+┌─────────────────────────────────────────┐
+│  Agent 2: CleanerAgent (文本清洗)        │
+│  - 删除 Markdown/emoji                  │
+│  - 规范标题编号层级                      │
+│  - 输出: 规范化后的文本                  │
+└─────────────────────────────────────────┘
+            ↓
+┌─────────────────────────────────────────┐
+│  Agent 3: MarkerAgent (结构标记)         │
+│  - 识别标题/正文/发文机关/日期           │
+│  - 输出: AnalysisResult                 │
+└─────────────────────────────────────────┘
+            ↓
+┌─────────────────────────────────────────┐
+│  Agent 4: ValidatorAgent (一致性校验)    │
+│  - 检查标题层级是否闭合                  │
+│  - 检查是否还有异常符号                  │
+│  - 失败则从Agent 2重新开始（最多2次）    │
+└─────────────────────────────────────────┘
+            ↓
+        格式化输出 Word 文档
+```
+
+这套 Multi-Agent 架构能够自动处理各种格式的输入文本：
+- **规范公文**：直接进行结构识别和排版
+- **Markdown 文本**：自动清洗 Markdown 标记后再处理
+- **含 emoji/特殊符号**：自动清理后再处理
+- **结构混乱的文本**：尝试自动修复，多次重试后仍失败才报错
 
 ---
 
@@ -198,8 +247,16 @@ powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPa
 │   ├── api/
 │   │   └── routes.py        # API路由
 │   ├── core/
+│   │   ├── agents/          # Multi-Agent 系统
+│   │   │   ├── __init__.py
+│   │   │   ├── base_agent.py      # Agent 基类
+│   │   │   ├── router_agent.py    # 行文规范性判断
+│   │   │   ├── cleaner_agent.py   # 文本清洗
+│   │   │   ├── marker_agent.py    # 结构标记
+│   │   │   ├── validator_agent.py # 一致性校验
+│   │   │   └── orchestrator.py    # Agent 编排器
 │   │   ├── document_parser.py  # Word文档解析（支持.doc转换）
-│   │   ├── llm_analyzer.py     # 大模型结构分析
+│   │   ├── llm_analyzer.py     # 大模型结构分析（兼容层）
 │   │   ├── formatter.py        # 排版格式化引擎
 │   │   └── styles.py           # 公文样式定义
 │   ├── models/
@@ -237,7 +294,13 @@ powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPa
   "success": true,
   "message": "文档格式化成功",
   "output_filename": "formatted_xxx.docx",
-  "download_url": "/api/download/formatted_xxx.docx"
+  "download_url": "/api/download/formatted_xxx.docx",
+  "processing_info": {
+    "was_cleaned": true,
+    "original_confidence": 0.65,
+    "retry_count": 0,
+    "issues_fixed": ["删除了Markdown标记", "规范了标题编号"]
+  }
 }
 ```
 
@@ -253,7 +316,13 @@ powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPa
   "success": true,
   "message": "文档格式化成功",
   "output_filename": "formatted_text_xxx.docx",
-  "download_url": "/api/download/formatted_text_xxx.docx"
+  "download_url": "/api/download/formatted_text_xxx.docx",
+  "processing_info": {
+    "was_cleaned": false,
+    "original_confidence": 0.92,
+    "retry_count": 0,
+    "issues_fixed": []
+  }
 }
 ```
 

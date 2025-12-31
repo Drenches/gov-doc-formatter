@@ -21,7 +21,7 @@ from app.core.styles import (
     FontStyle,
     ParagraphStyle
 )
-from app.core.llm_analyzer import AnalysisResult, DocumentElement
+from app.core.agents import AnalysisResult, DocumentElement
 
 
 # 括号标准化映射表 - 将各种括号统一转换为中文全角括号

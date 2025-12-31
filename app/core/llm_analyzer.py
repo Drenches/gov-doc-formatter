@@ -1,99 +1,47 @@
 """
 LLM分析模块 - 使用通义千问分析公文结构
+
+此模块已重构，现在作为 AgentOrchestrator 的兼容层。
+实际的分析逻辑由 Multi-Agent 系统处理。
 """
-import json
-import re
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
-import dashscope
-from dashscope import Generation
+import logging
+from typing import Optional
 
-from app.config import DASHSCOPE_API_KEY, LLM_MODEL
-from app.core.styles import ElementType
+from app.core.agents import (
+    AgentOrchestrator,
+    ProcessResult,
+    AnalysisResult,
+    DocumentElement
+)
 
+logger = logging.getLogger(__name__)
 
-@dataclass
-class DocumentElement:
-    """文档元素"""
-    index: int                  # 原始段落索引
-    element_type: str           # 元素类型
-    content: str                # 内容
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class AnalysisResult:
-    """分析结果"""
-    title: Optional[str]                    # 公文标题
-    elements: List[DocumentElement]         # 文档元素列表
-    issuing_authority: Optional[str]        # 发文机关
-    date: Optional[str]                     # 成文日期
-    raw_response: str                       # LLM原始响应
-    success: bool = True                    # 是否成功
-    error_message: Optional[str] = None     # 错误信息
-
-
-# 公文结构分析的Prompt模板
-ANALYSIS_PROMPT = """你是一个专业的公文格式分析专家。请分析以下公文内容，识别每个段落的类型。
-
-公文内容（每行前面的数字是段落编号）：
-{document_text}
-
-请识别每个段落属于以下哪种类型：
-- title: 公文标题（通常是"关于XXX的通知/报告/请示/批复"等）
-- heading1: 一级标题（格式通常是"一、XXX"）
-- heading2: 二级标题（格式通常是"（一）XXX"或"（二）XXX"）
-- heading3: 三级标题（格式通常是"1.XXX"或"1．XXX"）
-- heading4: 四级标题（格式通常是"（1）XXX"）
-- body: 正文内容
-- issuing_authority: 发文机关署名
-- date: 成文日期（如"2025年12月25日"）
-
-请以JSON格式返回分析结果，格式如下：
-```json
-{{
-    "title": "公文标题内容",
-    "issuing_authority": "发文机关名称（如果有）",
-    "date": "成文日期（如果有）",
-    "elements": [
-        {{"index": 0, "type": "title", "content": "段落内容"}},
-        {{"index": 1, "type": "body", "content": "段落内容"}},
-        ...
-    ]
-}}
-```
-
-注意事项：
-1. 请务必按照段落编号顺序返回所有非空段落
-2. 如果无法确定类型，默认为body
-3. 标题通常在文档开头，且内容较短
-4. 一级标题通常以"一、二、三..."开头
-5. 二级标题通常以"（一）（二）..."开头
-6. 三级标题通常以"1. 2. 3."或"1．2．3．"开头
-7. 四级标题通常以"（1）（2）..."开头
-8. 发文机关和日期通常在文档末尾
-
-请只返回JSON内容，不要有其他说明文字。"""
+# 导出数据类，保持向后兼容
+__all__ = ['LLMAnalyzer', 'AnalysisResult', 'DocumentElement', 'analyze_document']
 
 
 class LLMAnalyzer:
-    """使用通义千问分析公文结构"""
+    """
+    使用通义千问分析公文结构
+
+    此类现在是 AgentOrchestrator 的包装器，提供向后兼容的接口。
+    内部使用 Multi-Agent 系统进行处理：
+    1. RouterAgent: 判断文本规范性
+    2. CleanerAgent: 清洗不规范文本（条件调用）
+    3. MarkerAgent: 识别文档结构
+    4. ValidatorAgent: 校验分析结果
+    """
 
     def __init__(self, api_key: str = None, model: str = None):
         """
         初始化分析器
 
         Args:
-            api_key: 通义千问API密钥，如果不提供则从配置读取
-            model: 模型名称，如果不提供则从配置读取
+            api_key: 通义千问API密钥（现已不使用，保留参数以兼容旧代码）
+            model: 模型名称
         """
-        self.api_key = api_key or DASHSCOPE_API_KEY
-        self.model = model or LLM_MODEL
-
-        if not self.api_key:
-            raise ValueError("未配置DASHSCOPE_API_KEY，请在.env文件中设置")
-
-        dashscope.api_key = self.api_key
+        self.orchestrator = AgentOrchestrator(model=model)
+        self._last_process_result: Optional[ProcessResult] = None
 
     def analyze(self, document_text: str) -> AnalysisResult:
         """
@@ -105,133 +53,68 @@ class LLMAnalyzer:
         Returns:
             AnalysisResult: 分析结果
         """
-        prompt = ANALYSIS_PROMPT.format(document_text=document_text)
+        # 移除段落编号前缀（如果有），因为 Orchestrator 会重新添加
+        clean_text = self._remove_line_numbers(document_text)
 
-        try:
-            response = Generation.call(
-                model=self.model,
-                prompt=prompt,
-                result_format='message'
-            )
+        # 调用编排器处理
+        process_result = self.orchestrator.process(clean_text)
 
-            if response.status_code != 200:
-                return AnalysisResult(
-                    title=None,
-                    elements=[],
-                    issuing_authority=None,
-                    date=None,
-                    raw_response=str(response),
-                    success=False,
-                    error_message=f"API调用失败: {response.message}"
-                )
+        # 保存处理结果，供外部获取详细信息
+        self._last_process_result = process_result
 
-            # 提取响应内容
-            content = response.output.choices[0].message.content
-            return self._parse_response(content)
-
-        except Exception as e:
+        if process_result.success and process_result.analysis_result:
+            return process_result.analysis_result
+        else:
+            # 构造失败的 AnalysisResult
             return AnalysisResult(
-                title=None,
-                elements=[],
-                issuing_authority=None,
-                date=None,
-                raw_response="",
                 success=False,
-                error_message=f"分析失败: {str(e)}"
+                error_message=process_result.error or "分析失败"
             )
 
-    def _parse_response(self, content: str) -> AnalysisResult:
+    def get_last_process_info(self) -> Optional[dict]:
         """
-        解析LLM响应
-
-        Args:
-            content: LLM响应内容
+        获取最近一次处理的详细信息
 
         Returns:
-            AnalysisResult: 解析后的结果
+            dict: 包含处理过程信息的字典，包括：
+                - was_cleaned: 是否经过文本清洗
+                - router_confidence: 原始规范性置信度
+                - retry_count: 重试次数
+                - issues_fixed: 修复的问题列表
         """
-        try:
-            # 尝试提取JSON部分
-            json_str = self._extract_json(content)
-            data = json.loads(json_str)
+        if not self._last_process_result:
+            return None
 
-            elements = []
-            for item in data.get("elements", []):
-                element = DocumentElement(
-                    index=item.get("index", 0),
-                    element_type=self._normalize_type(item.get("type", "body")),
-                    content=item.get("content", "")
-                )
-                elements.append(element)
-
-            return AnalysisResult(
-                title=data.get("title"),
-                elements=elements,
-                issuing_authority=data.get("issuing_authority"),
-                date=data.get("date"),
-                raw_response=content,
-                success=True
-            )
-
-        except json.JSONDecodeError as e:
-            return AnalysisResult(
-                title=None,
-                elements=[],
-                issuing_authority=None,
-                date=None,
-                raw_response=content,
-                success=False,
-                error_message=f"JSON解析失败: {str(e)}"
-            )
-
-    def _extract_json(self, content: str) -> str:
-        """
-        从响应中提取JSON字符串
-
-        Args:
-            content: 响应内容
-
-        Returns:
-            str: JSON字符串
-        """
-        # 尝试匹配```json ... ```格式
-        json_match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
-        if json_match:
-            return json_match.group(1)
-
-        # 尝试匹配``` ... ```格式
-        code_match = re.search(r'```\s*([\s\S]*?)\s*```', content)
-        if code_match:
-            return code_match.group(1)
-
-        # 尝试直接匹配JSON对象
-        json_obj_match = re.search(r'\{[\s\S]*\}', content)
-        if json_obj_match:
-            return json_obj_match.group(0)
-
-        return content
-
-    def _normalize_type(self, type_str: str) -> str:
-        """
-        标准化元素类型
-
-        Args:
-            type_str: 类型字符串
-
-        Returns:
-            str: 标准化后的类型
-        """
-        type_map = {
-            "title": ElementType.TITLE,
-            "heading1": ElementType.HEADING1,
-            "heading2": ElementType.HEADING2,
-            "heading3": ElementType.HEADING3,
-            "heading4": ElementType.HEADING4,
-            "body": ElementType.BODY,
-            "issuing_authority": ElementType.ISSUING_AUTHORITY,
-            "date": ElementType.DATE,
+        return {
+            "was_cleaned": self._last_process_result.was_cleaned,
+            "router_confidence": self._last_process_result.router_confidence,
+            "retry_count": self._last_process_result.retry_count,
+            "issues_fixed": self._last_process_result.issues_fixed,
+            "validation_issues": self._last_process_result.validation_issues
         }
-        return type_map.get(type_str.lower(), ElementType.BODY)
+
+    def _remove_line_numbers(self, text: str) -> str:
+        """
+        移除行首的段落编号
+
+        Args:
+            text: 可能带有 [0] [1] 格式编号的文本
+
+        Returns:
+            str: 去除编号后的纯文本
+        """
+        lines = []
+        for line in text.split('\n'):
+            # 匹配 [数字] 开头的格式
+            if line.strip().startswith('[') and ']' in line:
+                bracket_end = line.index(']')
+                # 检查方括号内是否为数字
+                bracket_content = line[line.index('[') + 1:bracket_end].strip()
+                if bracket_content.isdigit():
+                    # 移除编号，保留后面的内容
+                    line = line[bracket_end + 1:].strip()
+            lines.append(line)
+        return '\n'.join(lines)
 
 
 def analyze_document(document_text: str, api_key: str = None) -> AnalysisResult:
@@ -240,7 +123,7 @@ def analyze_document(document_text: str, api_key: str = None) -> AnalysisResult:
 
     Args:
         document_text: 文档文本
-        api_key: API密钥（可选）
+        api_key: API密钥（现已不使用，保留参数以兼容）
 
     Returns:
         AnalysisResult: 分析结果

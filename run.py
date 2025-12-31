@@ -35,29 +35,17 @@ def open_browser():
 
 
 def run_with_waitress():
-    """使用 waitress 运行服务（WSGI 方式，兼容性更好）"""
+    """使用 waitress 运行服务（备用方案）"""
     from waitress import serve
-    from asgiref.wsgi import WsgiToAsgi
     from app.main import app
-
-    # 创建 WSGI 到 ASGI 的适配器
-    # 注意：这里我们需要反过来，把 ASGI app 包装成 WSGI
-    # 但 waitress 只支持 WSGI，所以我们用一个同步包装器
-
-    # 使用 a]sync_asgi 的 ASGIMiddleware 来包装
-    from asgiref.sync import async_to_sync
     import asyncio
 
     class WsgiApp:
-        """将 ASGI 应用包装为 WSGI"""
+        """将 ASGI 应用包装为 WSGI，支持流式响应（如文件下载）"""
         def __init__(self, asgi_app):
             self.asgi_app = asgi_app
 
         def __call__(self, environ, start_response):
-            # 简单的同步包装，适用于简单场景
-            # 对于生产环境，建议使用 uvicorn
-            import io
-
             # 构建 ASGI scope
             scope = {
                 'type': 'http',
@@ -81,7 +69,7 @@ def run_with_waitress():
 
             body = environ['wsgi.input'].read(content_length) if content_length > 0 else b''
 
-            # 运行 ASGI 应用
+            # 用于收集响应
             response_started = False
             response_headers = []
             response_body = []
@@ -97,7 +85,9 @@ def run_with_waitress():
                     status_code = message['status']
                     response_headers.extend(message.get('headers', []))
                 elif message['type'] == 'http.response.body':
-                    response_body.append(message.get('body', b''))
+                    body_content = message.get('body', b'')
+                    if body_content:
+                        response_body.append(body_content)
 
             # 运行异步应用
             loop = asyncio.new_event_loop()
@@ -107,8 +97,17 @@ def run_with_waitress():
             finally:
                 loop.close()
 
-            # 构建 WSGI 响应
-            status = f"{status_code} OK"
+            # 构建 WSGI 响应状态
+            status_phrases = {
+                200: 'OK', 201: 'Created', 204: 'No Content',
+                301: 'Moved Permanently', 302: 'Found', 304: 'Not Modified',
+                400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
+                404: 'Not Found', 405: 'Method Not Allowed',
+                500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable'
+            }
+            status_phrase = status_phrases.get(status_code, 'Unknown')
+            status = f"{status_code} {status_phrase}"
+
             headers = [(k.decode() if isinstance(k, bytes) else k,
                        v.decode() if isinstance(v, bytes) else v)
                       for k, v in response_headers]
@@ -130,45 +129,51 @@ def run_with_waitress():
             return headers
 
     wsgi_app = WsgiApp(app)
-    print("使用 waitress 服务器启动...")
-    serve(wsgi_app, host='127.0.0.1', port=8000, _quiet=True)
+    print("  使用 waitress 服务器启动...")
+    print()
+    serve(wsgi_app, host='0.0.0.0', port=8000, _quiet=True)
 
 
-def run_with_uvicorn():
-    """使用 uvicorn 运行服务（开发模式）"""
+def run_with_uvicorn(port=8080):
+    """使用 uvicorn 运行服务"""
     import uvicorn
     from app.main import app
-    uvicorn.run(app, host='127.0.0.1', port=8000, log_level='warning')
+    uvicorn.run(app, host='0.0.0.0', port=port, log_level='warning')
 
 
 def main():
     """主函数"""
     print("=" * 50)
-    print("公文自动排版工具")
+    print("       公文自动排版工具")
     print("=" * 50)
-    print("服务启动中...")
-    print("访问地址: http://localhost:8000")
+    print()
+    print("  服务启动中...")
+    print()
+    print("  访问地址: http://localhost:8080")
 
     if not is_frozen():
-        print("API文档: http://localhost:8000/docs")
-        print("前端页面: http://localhost:8000/static/index.html")
+        print("  API文档: http://localhost:8080/docs")
+        print("  前端页面: http://localhost:8080/static/index.html")
 
+    print()
     print("=" * 50)
-    print("提示: 关闭此窗口将停止服务")
+    print("  【重要提示】")
+    print("  - 关闭此窗口将停止服务")
+    print("  - 请勿在使用时关闭此窗口")
+    print("  - 如需释放端口，请关闭此窗口")
     print("=" * 50)
+    print()
 
     # 打包模式下自动打开浏览器
     if is_frozen():
         browser_thread = threading.Thread(target=open_browser, daemon=True)
         browser_thread.start()
 
-    # 根据运行环境选择服务器
+    # 统一使用 uvicorn（EXE 和开发模式都用 uvicorn）
     if is_frozen():
-        # 打包模式使用 waitress（兼容性更好）
-        run_with_waitress()
+        run_with_uvicorn(port=8000)
     else:
-        # 开发模式使用 uvicorn（功能更全）
-        run_with_uvicorn()
+        run_with_uvicorn(port=8080)
 
 
 if __name__ == "__main__":

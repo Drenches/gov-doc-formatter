@@ -30,15 +30,20 @@ def get_data_dir() -> Path:
     获取数据存储目录
 
     - 开发模式：项目根目录
-    - 打包模式：用户目录下的应用数据目录
+    - 打包模式：用户配置的目录 或 默认用户目录
     """
     if getattr(sys, 'frozen', False):
-        # 打包模式：使用用户目录
-        if sys.platform == 'win32':
-            base = Path(os.environ.get('USERPROFILE', Path.home()))
-        else:
-            base = Path.home()
-        return base / ".公文排版工具"
+        # 打包模式：优先使用 config_manager 中配置的目录
+        try:
+            from config_manager import config_manager
+            return Path(config_manager.get_data_dir())
+        except ImportError:
+            # 回退到默认目录
+            if sys.platform == 'win32':
+                base = Path(os.environ.get('USERPROFILE', Path.home()))
+            else:
+                base = Path.home()
+            return base / ".公文排版工具"
     else:
         # 开发模式：项目根目录
         return Path(__file__).resolve().parent.parent

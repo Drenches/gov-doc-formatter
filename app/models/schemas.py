@@ -22,6 +22,14 @@ class AnalysisResponse(BaseModel):
     error_message: Optional[str] = Field(None, description="错误信息")
 
 
+class ProcessingInfo(BaseModel):
+    """处理过程信息"""
+    was_cleaned: bool = Field(False, description="是否经过文本清洗")
+    original_confidence: float = Field(0.0, description="原始规范性置信度")
+    retry_count: int = Field(0, description="重试次数")
+    issues_fixed: List[str] = Field(default_factory=list, description="修复的问题列表")
+
+
 class FormatResponse(BaseModel):
     """格式化响应"""
     success: bool = Field(..., description="是否成功")
@@ -29,6 +37,7 @@ class FormatResponse(BaseModel):
     output_filename: Optional[str] = Field(None, description="输出文件名")
     download_url: Optional[str] = Field(None, description="下载链接")
     error_message: Optional[str] = Field(None, description="错误信息")
+    processing_info: Optional[ProcessingInfo] = Field(None, description="处理过程信息")
 
 
 class HealthResponse(BaseModel):

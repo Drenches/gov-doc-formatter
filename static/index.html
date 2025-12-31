@@ -200,6 +200,25 @@
             font-size: 14px;
         }
 
+        .process-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f9ff;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #0369a1;
+        }
+
+        .process-info-item {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+        }
+
+        .process-info-icon {
+            margin-right: 6px;
+        }
+
         .btn-download {
             display: inline-block;
             margin-top: 15px;
@@ -415,6 +434,20 @@ XXXX"></textarea>
         <div class="result" id="result">
             <p class="result-title" id="resultTitle"></p>
             <p class="result-message" id="resultMessage"></p>
+            <div class="process-info" id="processInfo" style="display: none;">
+                <div class="process-info-item" id="cleanedInfo">
+                    <span class="process-info-icon">🧹</span>
+                    <span>已自动清理文本格式</span>
+                </div>
+                <div class="process-info-item" id="confidenceInfo">
+                    <span class="process-info-icon">📊</span>
+                    <span id="confidenceText">规范性置信度: 0%</span>
+                </div>
+                <div class="process-info-item" id="retryInfo" style="display: none;">
+                    <span class="process-info-icon">🔄</span>
+                    <span id="retryText">重试次数: 0</span>
+                </div>
+            </div>
             <a class="btn-download" id="downloadBtn" style="display: none;">下载排版后的文档</a>
         </div>
 
@@ -625,19 +658,30 @@ XXXX"></textarea>
                 progressContainer.classList.add('show');
                 result.classList.remove('show');
 
+                // 处理阶段消息映射
+                const stageMessages = {
+                    0: '正在分析文本规范性...',
+                    20: '正在规范化文本格式...',
+                    40: '正在识别文档结构...',
+                    60: '正在校验分析结果...',
+                    80: '正在应用公文格式...',
+                    95: '即将完成...'
+                };
+
                 // 模拟进度
                 let progress = 0;
                 const progressInterval = setInterval(() => {
                     if (progress < 90) {
-                        progress += Math.random() * 15;
+                        progress += Math.random() * 10;
                         progressFill.style.width = `${Math.min(progress, 90)}%`;
 
-                        if (progress < 30) {
-                            progressText.textContent = '正在解析内容...';
-                        } else if (progress < 60) {
-                            progressText.textContent = '正在分析文档结构...';
-                        } else {
-                            progressText.textContent = '正在应用公文格式...';
+                        // 根据进度更新文字
+                        const stages = Object.keys(stageMessages).map(Number).sort((a, b) => a - b);
+                        for (let i = stages.length - 1; i >= 0; i--) {
+                            if (progress >= stages[i]) {
+                                progressText.textContent = stageMessages[stages[i]];
+                                break;
+                            }
                         }
                     }
                 }, 500);
@@ -672,18 +716,55 @@ XXXX"></textarea>
                         progressContainer.classList.remove('show');
                         result.classList.add('show');
 
+                        // 获取处理信息相关元素
+                        const processInfo = document.getElementById('processInfo');
+                        const cleanedInfo = document.getElementById('cleanedInfo');
+                        const confidenceInfo = document.getElementById('confidenceInfo');
+                        const confidenceText = document.getElementById('confidenceText');
+                        const retryInfo = document.getElementById('retryInfo');
+                        const retryText = document.getElementById('retryText');
+
                         if (responseData.success) {
                             result.className = 'result show success';
-                            resultTitle.textContent = '✅ 排版成功！';
+                            resultTitle.textContent = '排版成功！';
                             resultMessage.textContent = responseData.message;
                             downloadBtn.href = responseData.download_url;
                             downloadBtn.style.display = 'inline-block';
                             downloadBtn.download = responseData.output_filename;
+
+                            // 显示处理过程信息
+                            if (responseData.processing_info) {
+                                const info = responseData.processing_info;
+                                processInfo.style.display = 'block';
+
+                                // 是否经过清洗
+                                if (info.was_cleaned) {
+                                    cleanedInfo.style.display = 'flex';
+                                } else {
+                                    cleanedInfo.style.display = 'none';
+                                }
+
+                                // 置信度
+                                const confidencePercent = Math.round(info.original_confidence * 100);
+                                confidenceText.textContent = `原始规范性: ${confidencePercent}%`;
+                                confidenceInfo.style.display = 'flex';
+
+                                // 重试次数
+                                if (info.retry_count > 0) {
+                                    retryText.textContent = `经过 ${info.retry_count} 次优化`;
+                                    retryInfo.style.display = 'flex';
+                                } else {
+                                    retryInfo.style.display = 'none';
+                                }
+                            } else {
+                                processInfo.style.display = 'none';
+                            }
                         } else {
                             result.className = 'result show error';
-                            resultTitle.textContent = '❌ 排版失败';
+                            resultTitle.textContent = '排版失败';
                             resultMessage.textContent = responseData.detail || responseData.error_message || '未知错误';
                             downloadBtn.style.display = 'none';
+                            processInfo.style.display = 'none';
                         }
                     }, 500);
 
@@ -692,9 +773,10 @@ XXXX"></textarea>
                     progressContainer.classList.remove('show');
                     result.classList.add('show');
                     result.className = 'result show error';
-                    resultTitle.textContent = '❌ 请求失败';
+                    resultTitle.textContent = '请求失败';
                     resultMessage.textContent = error.message || '网络错误，请稍后重试';
                     downloadBtn.style.display = 'none';
+                    document.getElementById('processInfo').style.display = 'none';
                 }
 
                 button.disabled = false;

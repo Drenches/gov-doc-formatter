@@ -37,6 +37,7 @@ packages_to_copy = [
     'sniffio',
 
     # 服务器
+    'uvicorn',
     'waitress',
     'asgiref',
     'h11',
@@ -143,7 +144,6 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'tkinter',
         'matplotlib',
         'numpy',
         'pandas',
@@ -153,7 +153,6 @@ a = Analysis(
         'IPython',
         'jupyter',
         'notebook',
-        'uvicorn',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -177,7 +176,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False,  # 隐藏控制台窗口
+    console=True,  # 显示控制台窗口，方便用户关闭服务
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
