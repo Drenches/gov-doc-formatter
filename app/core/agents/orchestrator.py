@@ -1,7 +1,13 @@
 """
 AgentOrchestrator - Agent编排器
 
-负责协调各个Agent的调用流程，实现完整的公文处理管道
+新流程：
+1. Router: 轻量过滤（是否明显非公文、是否需要清洗）
+2. Cleaner: 条件清洗（保守/重度两档）
+3. Marker: 排版规划（安全排版优先）
+4. Validator: 硬约束校验（程序化）
+
+核心改进：去掉显式文体分类，让 Marker 自己判断如何排版
 """
 import logging
 from dataclasses import dataclass, field
@@ -9,8 +15,8 @@ from typing import Callable, List, Optional
 
 from app.core.agents.base_agent import AgentResult
 from app.core.agents.router_agent import RouterAgent, RouterResult
-from app.core.agents.cleaner_agent import CleanerAgent, CleanerResult
-from app.core.agents.marker_agent import MarkerAgent, AnalysisResult
+from app.core.agents.cleaner_agent import CleanerAgent, CleanerResult, CleaningMode
+from app.core.agents.marker_agent import MarkerAgent, LayoutResult
 from app.core.agents.validator_agent import ValidatorAgent, ValidatorResult
 
 logger = logging.getLogger(__name__)
@@ -22,27 +28,41 @@ ProgressCallback = Callable[[str, str], None]
 @dataclass
 class ProcessResult(AgentResult):
     """完整处理流程的结果"""
-    analysis_result: Optional[AnalysisResult] = None  # 最终分析结果
-    was_cleaned: bool = False                          # 是否经过文本清洗
-    router_confidence: float = 0.0                     # 原始规范性置信度
-    retry_count: int = 0                               # 重试次数
-    issues_fixed: List[str] = field(default_factory=list)  # 修复的问题列表
-    validation_issues: List[str] = field(default_factory=list)  # 校验发现的问题
+    layout_result: Optional[LayoutResult] = None   # 排版规划结果
+    was_cleaned: bool = False                       # 是否经过文本清洗
+    cleaning_mode: Optional[str] = None             # 使用的清洗模式
+    retry_count: int = 0                            # 重试次数
+    issues_fixed: List[str] = field(default_factory=list)   # 修复的问题列表
+    validation_warnings: List[str] = field(default_factory=list)  # 校验警告
+
+    # 向后兼容的别名
+    @property
+    def analysis_result(self):
+        return self.layout_result
 
 
 class AgentOrchestrator:
     """
     Agent编排器
 
-    协调以下Agent的调用流程：
-    1. RouterAgent: 判断文本是否符合公文规范
-    2. CleanerAgent: 清洗不规范的文本（条件调用）
-    3. MarkerAgent: 识别文档结构
-    4. ValidatorAgent: 校验分析结果（带重试机制）
-    """
+    新流程：
+    1. RouterAgent: 轻量过滤
+       - 判断是否"明显不是公文"
+       - 判断是否需要清洗
 
-    # 置信度阈值，低于此值需要清洗
-    CONFIDENCE_THRESHOLD = 0.85
+    2. CleanerAgent: 条件清洗
+       - 需要清洗时才调用
+       - 根据情况选择保守/重度模式
+
+    3. MarkerAgent: 排版规划
+       - 不依赖预分类
+       - 自主判断合法结构
+       - 安全排版优先
+
+    4. ValidatorAgent: 硬约束校验
+       - 程序化校验，不调用 LLM
+       - 只检查"绝对不能接受"的问题
+    """
 
     # 最大重试次数
     MAX_RETRIES = 2
@@ -70,7 +90,7 @@ class AgentOrchestrator:
         Args:
             text: 待处理的文本
             progress_callback: 进度回调函数，格式为 callback(stage, message)
-                stage: 阶段标识 (analyzing, cleaning, marking, validating, completed)
+                stage: 阶段标识 (filtering, cleaning, planning, validating, completed)
                 message: 显示给用户的消息
 
         Returns:
@@ -80,73 +100,79 @@ class AgentOrchestrator:
         logger.info("开始公文处理流程")
         logger.info("=" * 50)
 
-        # Step 1: 路由判断
-        self._notify_progress(progress_callback, "analyzing", "正在分析文本规范性...")
+        # Step 1: 轻量过滤
+        self._notify_progress(progress_callback, "filtering", "正在分析文档...")
         router_result = self._step_router(text)
 
         if not router_result.success:
             return ProcessResult(
                 success=False,
-                error=f"规范性判断失败: {router_result.error}",
-                router_confidence=0.0
+                error=f"文档分析失败: {router_result.error}"
+            )
+
+        # 检查是否明显不是公文
+        if not router_result.is_likely_official:
+            logger.warning("文档被判定为明显不是公文")
+            return ProcessResult(
+                success=False,
+                error="输入内容不像是公文格式，请检查后重试"
             )
 
         # Step 2: 条件清洗
         processed_text = text
         was_cleaned = False
+        cleaning_mode = None
         issues_fixed = []
 
-        needs_cleaning = (
-            not router_result.is_official_style or
-            router_result.confidence < self.CONFIDENCE_THRESHOLD
-        )
+        if router_result.needs_cleaning:
+            self._notify_progress(progress_callback, "cleaning", "正在清洗文本格式...")
 
-        if needs_cleaning:
-            self._notify_progress(progress_callback, "cleaning", "正在规范化文本格式...")
-            clean_result = self._step_cleaner(text, router_result.issues)
+            # 根据噪声问题数量决定清洗模式
+            # 问题多用重度清洗，问题少用保守清洗
+            mode = CleaningMode.DEEP if len(router_result.noise_issues) > 3 else CleaningMode.LIGHT
+            cleaning_mode = mode.value
 
-            if clean_result.cleaned_text:
+            clean_result = self._step_cleaner(text, router_result.noise_issues, mode)
+
+            if clean_result.success and clean_result.cleaned_text:
                 processed_text = clean_result.cleaned_text
                 was_cleaned = True
-                issues_fixed = router_result.issues.copy()
-                logger.info(f"文本已清洗，处理了 {len(issues_fixed)} 个问题")
+                issues_fixed = router_result.noise_issues.copy()
+                logger.info(f"文本已清洗（{mode.value}模式），处理了 {len(issues_fixed)} 个问题")
         else:
-            logger.info(f"文本已符合公文规范 (置信度: {router_result.confidence:.2f})，跳过清洗")
+            logger.info("文本无需清洗，直接进入排版规划")
 
-        # Step 3 & 4: 结构标记 + 校验（带重试）
+        # Step 3 & 4: 排版规划 + 校验（带重试）
         retry_count = 0
         current_text = processed_text
-        analysis_result = None
+        layout_result = None
         validator_result = None
 
         while retry_count <= self.MAX_RETRIES:
-            # Step 3: 结构标记
+            # Step 3: 排版规划
             retry_suffix = f"（第{retry_count}次重试）" if retry_count > 0 else ""
             self._notify_progress(
                 progress_callback,
-                "marking",
-                f"正在识别文档结构...{retry_suffix}"
+                "planning",
+                f"正在规划文档排版...{retry_suffix}"
             )
 
-            analysis_result = self._step_marker(current_text)
+            layout_result = self._step_marker(current_text)
 
-            if not analysis_result.success:
-                return ProcessResult(
-                    success=False,
-                    error=f"结构识别失败: {analysis_result.error_message}",
-                    was_cleaned=was_cleaned,
-                    router_confidence=router_result.confidence,
-                    retry_count=retry_count
-                )
+            if not layout_result.success:
+                # 使用保守兜底排版
+                logger.warning("排版规划失败，使用保守兜底方案")
+                lines = current_text.strip().split('\n')
+                layout_result = self.marker.fallback_layout(lines)
 
-            # Step 4: 一致性校验
+            # Step 4: 硬约束校验
             self._notify_progress(
                 progress_callback,
                 "validating",
-                f"正在校验结果...{retry_suffix}"
+                f"正在校验排版结果...{retry_suffix}"
             )
 
-            validator_result = self._step_validator(analysis_result)
+            validator_result = self._step_validator(layout_result)
 
             if validator_result.is_valid:
                 logger.info("校验通过！")
@@ -158,20 +184,22 @@ class AgentOrchestrator:
                 logger.warning(f"校验未通过，准备第 {retry_count} 次重试")
                 logger.warning(f"问题: {validator_result.issues}")
 
-                # 从Agent 2重新开始：重新清洗
+                # 重新清洗（使用重度模式）
                 self._notify_progress(
                     progress_callback,
                     "cleaning",
-                    f"正在重新规范化文本...（第{retry_count}次重试）"
+                    f"正在重新清洗文本...（第{retry_count}次重试）"
                 )
 
-                # 使用校验发现的问题指导清洗
-                combined_issues = router_result.issues + validator_result.issues
-                clean_result = self._step_cleaner(current_text, combined_issues)
+                combined_issues = router_result.noise_issues + validator_result.issues
+                clean_result = self._step_cleaner(
+                    current_text, combined_issues, CleaningMode.DEEP
+                )
 
-                if clean_result.cleaned_text:
+                if clean_result.success and clean_result.cleaned_text:
                     current_text = clean_result.cleaned_text
                     was_cleaned = True
+                    cleaning_mode = CleaningMode.DEEP.value
                     issues_fixed.extend(validator_result.issues)
 
         # 判断最终结果
@@ -179,13 +207,13 @@ class AgentOrchestrator:
             logger.error(f"处理失败：重试 {self.MAX_RETRIES} 次后仍未通过校验")
             return ProcessResult(
                 success=False,
-                error="原文结构不适合自动排版，请手动调整后重试",
-                analysis_result=analysis_result,
+                error="文档结构不适合自动排版，请手动调整后重试",
+                layout_result=layout_result,
                 was_cleaned=was_cleaned,
-                router_confidence=router_result.confidence,
+                cleaning_mode=cleaning_mode,
                 retry_count=retry_count,
                 issues_fixed=issues_fixed,
-                validation_issues=validator_result.issues
+                validation_warnings=validator_result.warnings
             )
 
         # 处理成功
@@ -194,29 +222,34 @@ class AgentOrchestrator:
         logger.info("=" * 50)
         logger.info("公文处理流程完成")
         logger.info(f"- 是否清洗: {was_cleaned}")
-        logger.info(f"- 原始置信度: {router_result.confidence:.2f}")
+        if was_cleaned:
+            logger.info(f"- 清洗模式: {cleaning_mode}")
         logger.info(f"- 重试次数: {retry_count}")
-        logger.info(f"- 识别元素数: {len(analysis_result.elements)}")
+        logger.info(f"- 识别元素数: {len(layout_result.elements)}")
+        if validator_result.warnings:
+            logger.info(f"- 警告数: {len(validator_result.warnings)}")
         logger.info("=" * 50)
 
         return ProcessResult(
             success=True,
-            analysis_result=analysis_result,
+            layout_result=layout_result,
             was_cleaned=was_cleaned,
-            router_confidence=router_result.confidence,
+            cleaning_mode=cleaning_mode,
             retry_count=retry_count,
-            issues_fixed=issues_fixed
+            issues_fixed=issues_fixed,
+            validation_warnings=validator_result.warnings
         )
 
     def _step_router(self, text: str) -> RouterResult:
-        """Step 1: 调用RouterAgent判断文本规范性"""
-        logger.info("[Step 1] 调用 RouterAgent 判断文本规范性")
+        """Step 1: 调用RouterAgent进行轻量过滤"""
+        logger.info("[Step 1] 调用 RouterAgent 轻量过滤")
         return self.router.analyze(text)
 
-    def _step_cleaner(self, text: str, issues: List[str]) -> CleanerResult:
+    def _step_cleaner(self, text: str, issues: List[str],
+                      mode: CleaningMode) -> CleanerResult:
         """Step 2: 调用CleanerAgent清洗文本"""
-        logger.info(f"[Step 2] 调用 CleanerAgent 清洗文本，需处理问题: {len(issues)} 个")
-        result = self.cleaner.execute(text, issues)
+        logger.info(f"[Step 2] 调用 CleanerAgent 清洗文本 (模式: {mode.value})")
+        result = self.cleaner.execute(text, issues, mode)
         if isinstance(result, CleanerResult):
             return result
         # 如果返回的是基类，转换一下
@@ -226,20 +259,22 @@ class AgentOrchestrator:
             error=result.error
         )
 
-    def _step_marker(self, text: str) -> AnalysisResult:
-        """Step 3: 调用MarkerAgent识别文档结构"""
-        logger.info("[Step 3] 调用 MarkerAgent 识别文档结构")
+    def _step_marker(self, text: str) -> LayoutResult:
+        """Step 3: 调用MarkerAgent进行排版规划"""
+        logger.info("[Step 3] 调用 MarkerAgent 排版规划")
 
         # 将文本转换为带编号的格式
         lines = text.strip().split('\n')
-        numbered_text = '\n'.join(f"[{i}] {line}" for i, line in enumerate(lines) if line.strip())
+        numbered_text = '\n'.join(
+            f"[{i}] {line}" for i, line in enumerate(lines) if line.strip()
+        )
 
         return self.marker.analyze(numbered_text)
 
-    def _step_validator(self, analysis_result: AnalysisResult) -> ValidatorResult:
-        """Step 4: 调用ValidatorAgent校验分析结果"""
-        logger.info("[Step 4] 调用 ValidatorAgent 校验分析结果")
-        return self.validator.validate(analysis_result)
+    def _step_validator(self, layout_result: LayoutResult) -> ValidatorResult:
+        """Step 4: 调用ValidatorAgent进行硬约束校验"""
+        logger.info("[Step 4] 调用 ValidatorAgent 硬约束校验")
+        return self.validator.validate(layout_result)
 
     def _notify_progress(
         self,

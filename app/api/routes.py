@@ -319,7 +319,7 @@ async def format_document(
         if process_info:
             processing_info = ProcessingInfo(
                 was_cleaned=process_info.get("was_cleaned", False),
-                original_confidence=process_info.get("router_confidence", 0.0),
+                original_confidence=0.0,  # 新架构不再使用置信度
                 retry_count=process_info.get("retry_count", 0),
                 issues_fixed=process_info.get("issues_fixed", [])
             )
@@ -400,7 +400,7 @@ async def format_text(
         if process_info:
             processing_info = ProcessingInfo(
                 was_cleaned=process_info.get("was_cleaned", False),
-                original_confidence=process_info.get("router_confidence", 0.0),
+                original_confidence=0.0,  # 新架构不再使用置信度
                 retry_count=process_info.get("retry_count", 0),
                 issues_fixed=process_info.get("issues_fixed", [])
             )

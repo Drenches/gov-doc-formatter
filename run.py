@@ -141,26 +141,43 @@ def run_with_uvicorn(port=8080):
     uvicorn.run(app, host='0.0.0.0', port=port, log_level='warning')
 
 
+def get_local_ip():
+    """获取本机 IP 地址（用于 WSL 等环境）"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "localhost"
+
+
 def main():
     """主函数"""
+    port = 8000 if is_frozen() else 8080
+    local_ip = get_local_ip()
+
     print("=" * 50)
     print("       公文自动排版工具")
     print("=" * 50)
     print()
     print("  服务启动中...")
     print()
-    print("  访问地址: http://localhost:8080")
+    print(f"  本地访问: http://localhost:{port}/static/index.html")
+    print(f"  网络访问: http://{local_ip}:{port}/static/index.html")
 
     if not is_frozen():
-        print("  API文档: http://localhost:8080/docs")
-        print("  前端页面: http://localhost:8080/static/index.html")
+        print()
+        print(f"  API文档:  http://localhost:{port}/docs")
 
     print()
     print("=" * 50)
     print("  【重要提示】")
     print("  - 关闭此窗口将停止服务")
-    print("  - 请勿在使用时关闭此窗口")
-    print("  - 如需释放端口，请关闭此窗口")
+    print("  - WSL 环境请使用「网络访问」地址")
+    print("  - 按 Ctrl+C 可停止服务")
     print("=" * 50)
     print()
 
@@ -169,11 +186,8 @@ def main():
         browser_thread = threading.Thread(target=open_browser, daemon=True)
         browser_thread.start()
 
-    # 统一使用 uvicorn（EXE 和开发模式都用 uvicorn）
-    if is_frozen():
-        run_with_uvicorn(port=8000)
-    else:
-        run_with_uvicorn(port=8080)
+    # 统一使用 uvicorn
+    run_with_uvicorn(port=port)
 
 
 if __name__ == "__main__":

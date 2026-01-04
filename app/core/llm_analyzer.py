@@ -78,19 +78,20 @@ class LLMAnalyzer:
         Returns:
             dict: 包含处理过程信息的字典，包括：
                 - was_cleaned: 是否经过文本清洗
-                - router_confidence: 原始规范性置信度
+                - cleaning_mode: 清洗模式（light/deep）
                 - retry_count: 重试次数
                 - issues_fixed: 修复的问题列表
+                - validation_warnings: 校验警告
         """
         if not self._last_process_result:
             return None
 
         return {
             "was_cleaned": self._last_process_result.was_cleaned,
-            "router_confidence": self._last_process_result.router_confidence,
+            "cleaning_mode": self._last_process_result.cleaning_mode,
             "retry_count": self._last_process_result.retry_count,
             "issues_fixed": self._last_process_result.issues_fixed,
-            "validation_issues": self._last_process_result.validation_issues
+            "validation_warnings": self._last_process_result.validation_warnings
         }
 
     def _remove_line_numbers(self, text: str) -> str:

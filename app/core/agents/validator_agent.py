@@ -1,15 +1,20 @@
 """
-ValidatorAgent - 一致性校验Agent
+ValidatorAgent - 硬约束校验器
 
-负责检查分析结果是否存在问题
+核心理念：
+- 让 LLM 决定"可能的最好排版"
+- 让程序决定"什么排版绝对不能接受"
+
+校验规则全部程序化，不再依赖 LLM 判断
 """
-import json
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
-from app.core.agents.base_agent import BaseAgent, AgentResult
-from app.core.agents.marker_agent import AnalysisResult
+from app.core.agents.base_agent import AgentResult
+from app.core.agents.marker_agent import LayoutResult
+from app.core.styles import ElementType
 
 logger = logging.getLogger(__name__)
 
@@ -19,166 +24,106 @@ class ValidatorResult(AgentResult):
     """校验结果"""
     is_valid: bool = False
     issues: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)  # 警告（不影响通过）
 
 
-class ValidatorAgent(BaseAgent):
+class ValidatorAgent:
     """
-    一致性校验Agent
+    硬约束校验器
 
-    检查分析结果是否存在问题：
-    - 标题层级是否闭合
-    - 是否还有异常符号
-    - 编号是否连续
-    - 类型标记是否合理
+    核心原则：
+    - 所有校验规则程序化，不调用 LLM
+    - 只检查"绝对不能接受"的问题
+    - 宽松校验，减少误判
+
+    校验规则分两类：
+    1. 硬约束（会导致校验失败）
+       - 没有任何元素
+       - 存在严重的结构错误
+
+    2. 软约束（只产生警告）
+       - 缺少标题
+       - 缺少落款
+       - 层级跳跃
     """
 
-    PROMPT_TEMPLATE = """你是公文格式审核专家。请检查以下公文分析结果是否存在问题。
+    def __init__(self, model: str = None):
+        """初始化（保持接口兼容，但不使用 model）"""
+        self.name = "ValidatorAgent"
 
-分析结果：
-{analysis_json}
-
-请检查以下方面：
-1. 标题层级是否正确闭合（有一级标题才能有二级，有二级才能有三级）
-2. 内容中是否还存在Markdown标记（##、*、-、>等）或异常符号（emoji等）
-3. 标题编号是否连续（一、二、三...不应跳过编号）
-4. 是否有明确的公文标题（title类型）
-5. 内容类型标记是否合理（例如：很长的内容不应标记为标题）
-
-请以JSON格式返回检查结果：
-{{
-  "is_valid": true或false,
-  "issues": ["发现的问题1", "发现的问题2"],
-  "suggestions": ["修改建议1", "修改建议2"]
-}}
-
-说明：
-- is_valid: 分析结果是否可接受（没有严重问题）
-- issues: 发现的问题列表
-- suggestions: 修改建议列表
-
-如果只有轻微问题（如缺少发文机关），仍可标记为is_valid=true。
-只有存在严重问题（如层级错乱、大量异常符号）才标记为is_valid=false。"""
-
-    @property
-    def name(self) -> str:
-        return "ValidatorAgent"
-
-    def get_prompt(self, analysis_result: AnalysisResult) -> str:
-        """构建校验prompt"""
-        # 将分析结果转换为JSON字符串
-        elements_data = []
-        for elem in analysis_result.elements:
-            elements_data.append({
-                "index": elem.index,
-                "type": elem.element_type,
-                "content": elem.content[:100] + "..." if len(elem.content) > 100 else elem.content
-            })
-
-        analysis_json = json.dumps({
-            "title": analysis_result.title,
-            "issuing_authority": analysis_result.issuing_authority,
-            "date": analysis_result.date,
-            "elements": elements_data
-        }, ensure_ascii=False, indent=2)
-
-        return self.PROMPT_TEMPLATE.format(analysis_json=analysis_json)
-
-    def parse_response(self, content: str) -> ValidatorResult:
-        """解析LLM响应"""
-        json_data = self.extract_json(content)
-
-        if not json_data:
-            logger.warning(f"[{self.name}] 无法解析JSON响应，默认通过")
-            return ValidatorResult(
-                success=True,
-                is_valid=True,
-                issues=["无法解析校验响应"],
-                suggestions=[]
-            )
-
-        try:
-            is_valid = json_data.get('is_valid', True)
-            issues = json_data.get('issues', [])
-            suggestions = json_data.get('suggestions', [])
-
-            # 确保是列表
-            if not isinstance(issues, list):
-                issues = [str(issues)] if issues else []
-            if not isinstance(suggestions, list):
-                suggestions = [str(suggestions)] if suggestions else []
-
-            logger.info(f"[{self.name}] 校验结果: is_valid={is_valid}, issues={len(issues)}个")
-
-            return ValidatorResult(
-                success=True,
-                is_valid=is_valid,
-                issues=issues,
-                suggestions=suggestions
-            )
-
-        except Exception as e:
-            logger.error(f"[{self.name}] 解析结果异常: {str(e)}")
-            return ValidatorResult(
-                success=True,
-                is_valid=True,  # 解析失败时默认通过
-                issues=[f"校验解析错误: {str(e)}"],
-                suggestions=[]
-            )
-
-    def validate(self, analysis_result: AnalysisResult) -> ValidatorResult:
+    def validate(self, layout_result: LayoutResult) -> ValidatorResult:
         """
-        校验分析结果
+        校验排版结果
 
         Args:
-            analysis_result: MarkerAgent的分析结果
+            layout_result: MarkerAgent 的排版规划结果
 
         Returns:
             ValidatorResult: 校验结果
         """
-        # 先做基本的程序化校验
-        basic_issues = self._basic_validation(analysis_result)
+        logger.info(f"[{self.name}] 开始校验排版结果")
 
-        # 如果基本校验发现严重问题，直接返回
-        if basic_issues:
-            logger.info(f"[{self.name}] 基本校验发现问题: {basic_issues}")
+        issues = []      # 硬约束问题（会导致失败）
+        warnings = []    # 软约束问题（只是警告）
 
-        # 调用LLM进行深度校验
-        result = self.execute(analysis_result)
+        # 检查基本有效性
+        if not layout_result.success:
+            issues.append("排版规划失败")
+            return ValidatorResult(
+                success=True,
+                is_valid=False,
+                issues=issues,
+                warnings=warnings
+            )
 
-        # 合并基本校验的问题
-        if isinstance(result, ValidatorResult) and basic_issues:
-            result.issues = basic_issues + result.issues
-            if basic_issues:
-                result.is_valid = False
-
-        return result
-
-    def _basic_validation(self, analysis_result: AnalysisResult) -> List[str]:
-        """
-        基本程序化校验
-
-        Returns:
-            List[str]: 发现的问题列表
-        """
-        issues = []
-
-        if not analysis_result.success:
-            issues.append("分析结果标记为失败")
-            return issues
-
-        if not analysis_result.elements:
+        if not layout_result.elements:
             issues.append("没有识别到任何文档元素")
-            return issues
+            return ValidatorResult(
+                success=True,
+                is_valid=False,
+                issues=issues,
+                warnings=warnings
+            )
 
-        # 检查是否有标题
-        has_title = any(e.element_type == "title" for e in analysis_result.elements)
+        # 执行各项检查
+        self._check_title(layout_result, warnings)
+        self._check_heading_levels(layout_result, warnings)
+        self._check_markdown_residue(layout_result, issues)
+        self._check_element_coverage(layout_result, warnings)
+
+        # 判断是否通过
+        is_valid = len(issues) == 0
+
+        if is_valid:
+            logger.info(f"[{self.name}] 校验通过，警告数: {len(warnings)}")
+        else:
+            logger.warning(f"[{self.name}] 校验失败，问题数: {len(issues)}")
+
+        return ValidatorResult(
+            success=True,
+            is_valid=is_valid,
+            issues=issues,
+            warnings=warnings
+        )
+
+    def _check_title(self, layout_result: LayoutResult, warnings: List[str]):
+        """检查是否有标题（软约束）"""
+        has_title = any(
+            e.element_type == ElementType.TITLE
+            for e in layout_result.elements
+        )
         if not has_title:
-            issues.append("未识别到公文标题")
+            warnings.append("未识别到公文标题")
 
-        # 检查标题层级
+    def _check_heading_levels(self, layout_result: LayoutResult, warnings: List[str]):
+        """
+        检查标题层级（软约束）
+
+        规则：允许没有任何 heading，但如果有 heading，层级不应跳跃
+        例如：有 heading2 但没有 heading1 是警告（不是错误）
+        """
         heading_levels = []
-        for elem in analysis_result.elements:
+        for elem in layout_result.elements:
             if elem.element_type.startswith("heading"):
                 try:
                     level = int(elem.element_type[-1])
@@ -186,21 +131,62 @@ class ValidatorAgent(BaseAgent):
                 except ValueError:
                     pass
 
+        if not heading_levels:
+            # 没有任何 heading 是完全合法的
+            return
+
         # 检查层级跳跃
-        for i, level in enumerate(heading_levels):
-            if i == 0 and level > 1:
-                issues.append(f"标题层级从{level}级开始，应该从一级开始")
-            elif i > 0:
-                prev_level = heading_levels[i - 1]
-                if level > prev_level + 1:
-                    issues.append(f"标题层级从{prev_level}级跳跃到{level}级")
+        min_level = min(heading_levels)
+        if min_level > 1:
+            # 例如：最小层级是 heading2，没有 heading1
+            # 这可能是合法的（如只有数字编号的文档）
+            warnings.append(f"标题层级从 {min_level} 级开始，没有更高层级")
 
-        # 检查内容中是否有Markdown标记
-        markdown_patterns = ['##', '**', '__', '```', '- [', '* ', '> ']
-        for elem in analysis_result.elements:
-            for pattern in markdown_patterns:
-                if pattern in elem.content:
-                    issues.append(f"内容中存在Markdown标记: {pattern}")
-                    break
+        # 检查层级连续性
+        for i in range(1, len(heading_levels)):
+            prev_level = heading_levels[i - 1]
+            curr_level = heading_levels[i]
+            if curr_level > prev_level + 1:
+                warnings.append(
+                    f"标题层级从 {prev_level} 级跳跃到 {curr_level} 级"
+                )
 
-        return issues
+    def _check_markdown_residue(self, layout_result: LayoutResult, issues: List[str]):
+        """
+        检查 Markdown 残留（硬约束）
+
+        如果内容中还有明显的 Markdown 标记，说明清洗不彻底
+        """
+        # 严重的 Markdown 标记（会导致失败）
+        severe_patterns = [
+            (r'^#{1,6}\s', 'Markdown 标题标记 (#)'),
+            (r'```', '代码块标记 (```)'),
+        ]
+
+        # 轻微的 Markdown 标记（只是警告，不再检查）
+        # 因为 ** 可能是强调，- 可能是列表，这些不一定是问题
+
+        for elem in layout_result.elements:
+            content = elem.content
+            for pattern, desc in severe_patterns:
+                if re.search(pattern, content, re.MULTILINE):
+                    issues.append(f"内容中存在 {desc}")
+                    return  # 发现一个就够了
+
+    def _check_element_coverage(self, layout_result: LayoutResult, warnings: List[str]):
+        """
+        检查元素覆盖度（软约束）
+
+        检查是否所有段落都被标记了
+        """
+        indices = [e.index for e in layout_result.elements]
+        if indices:
+            max_index = max(indices)
+            expected_count = max_index + 1
+            actual_count = len(indices)
+
+            if actual_count < expected_count * 0.8:
+                # 如果标记的元素少于预期的 80%，可能有遗漏
+                warnings.append(
+                    f"可能存在段落遗漏：预期 {expected_count} 个，实际 {actual_count} 个"
+                )

@@ -1,12 +1,16 @@
 """
-MarkerAgent - 结构标记Agent
+MarkerAgent - 排版规划器（Layout Planner）
 
-负责识别文档中各段落的类型（标题、正文、发文机关等）
-这是对现有 llm_analyzer.py 核心功能的Agent封装
+核心升级：
+- 不再是"按规则打标签"
+- 而是"综合判断文章该怎么排版"
+- 输出"排版决策"，不是"推理结果"
+
+核心红线：
+- ❌ 不改变文字内容
+- ✅ 只决定"这段话用什么样式"
 """
-import json
 import logging
-import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
@@ -20,14 +24,14 @@ logger = logging.getLogger(__name__)
 class DocumentElement:
     """文档元素"""
     index: int                  # 原始段落索引
-    element_type: str           # 元素类型
+    element_type: str           # 元素类型（排版样式）
     content: str                # 内容
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
-class AnalysisResult(AgentResult):
-    """分析结果"""
+class LayoutResult(AgentResult):
+    """排版规划结果"""
     title: Optional[str] = None                    # 公文标题
     elements: List[DocumentElement] = field(default_factory=list)  # 文档元素列表
     issuing_authority: Optional[str] = None        # 发文机关
@@ -35,34 +39,67 @@ class AnalysisResult(AgentResult):
     error_message: Optional[str] = None            # 错误信息
 
 
+# 保持向后兼容的别名
+AnalysisResult = LayoutResult
+
+
 class MarkerAgent(BaseAgent):
     """
-    结构标记Agent
+    排版规划器（Layout Planner）
 
-    识别文档中各段落的类型：
-    - title: 公文标题
-    - heading1-4: 各级标题
-    - body: 正文
-    - issuing_authority: 发文机关
-    - date: 成文日期
+    核心理念：
+    - 本任务目标是"安全排版"，不是"优化结构"
+    - 如果存在多种可能的排版方式，选择最保守、最少层级的方案
+    - 让 LLM 判断"合法结构"，而不是死规则
+
+    4 条负约束（比正规则更重要）：
+    1. 不得假设必须存在一级标题
+    2. 允许以下合法结构：无任何层级标题 / 只有数字条款 / 直接正文分段
+    3. 不得为了"结构美观"创造标题
+    4. 如果不确定，宁可全部标记为 body
     """
 
-    PROMPT_TEMPLATE = """你是一个专业的公文格式分析专家。请分析以下公文内容，识别每个段落的类型。
+    PROMPT_TEMPLATE = """你是公文排版规划专家。请为以下文档规划排版样式。
 
-公文内容（每行前面的数字是段落编号）：
+【核心任务】
+为每个段落指定一个排版样式，用于在 Word 中应用格式。
+
+公文内容（每行前面的数字是段落索引）：
 {document_text}
 
-请识别每个段落属于以下哪种类型：
-- title: 公文标题（通常是"关于XXX的通知/报告/请示/批复"等）
-- heading1: 一级标题（格式通常是"一、XXX"）
-- heading2: 二级标题（格式通常是"（一）XXX"或"（二）XXX"）
-- heading3: 三级标题（格式通常是"1.XXX"或"1．XXX"）
-- heading4: 四级标题（格式通常是"（1）XXX"）
-- body: 正文内容
-- issuing_authority: 发文机关署名
-- date: 成文日期（如"2025年12月25日"）
+【可用的排版样式】
+- title: 公文标题（居中、二号方正小标宋）
+- heading1: 一级标题（黑体，用于"一、二、三..."开头的段落）
+- heading2: 二级标题（楷体，用于"（一）（二）..."开头的段落）
+- heading3: 三级标题（仿宋加粗，用于"1. 2. 3."开头的段落）
+- heading4: 四级标题（仿宋，用于"（1）（2）..."开头的段落）
+- body: 正文（仿宋，首行缩进两字符）
+- issuing_authority: 发文机关署名（右对齐）
+- date: 成文日期（右对齐）
 
-请以JSON格式返回分析结果，格式如下：
+【重要原则 - 安全排版】
+本任务目标是"安全排版"，不是"优化结构"。
+
+1. 如果公文中已经存在下述【判断规则】中的层级标题，则按规则标记。
+
+2. 如果公文中不存在任何层级标题，则由你根据语义判断应该如何标记。
+
+3. 不得假设必须存在层级标题
+   - 很多公文（声明、公告、通告）本来就没有"一、二、三"
+   - 没有层级标题是完全合法的
+
+【判断规则】
+- 以"一、""二、""三、"等开头 → heading1
+- 以"（一）""（二）"等开头 → heading2
+- 以"1.""2.""3."等开头 → heading3
+- 以"（1）""（2）"等开头 → heading4
+- 以"第X条""第X章"开头 → heading1
+- 文档标题（通常是"关于...的通知/声明/规定"等） → title
+- 右下角的机关名称 → issuing_authority
+- 右下角的日期 → date
+- 其他所有内容 → body
+
+请以 JSON 格式返回：
 ```json
 {{
     "title": "公文标题内容",
@@ -76,17 +113,7 @@ class MarkerAgent(BaseAgent):
 }}
 ```
 
-注意事项：
-1. 请务必按照段落编号顺序返回所有非空段落
-2. 如果无法确定类型，默认为body
-3. 标题通常在文档开头，且内容较短
-4. 一级标题通常以"一、二、三..."开头
-5. 二级标题通常以"（一）（二）..."开头
-6. 三级标题通常以"1. 2. 3."或"1．2．3．"开头
-7. 四级标题通常以"（1）（2）..."开头
-8. 发文机关和日期通常在文档末尾
-
-请只返回JSON内容，不要有其他说明文字。"""
+注意：elements 必须包含所有段落，index 从 0 开始。"""
 
     @property
     def name(self) -> str:
@@ -96,13 +123,13 @@ class MarkerAgent(BaseAgent):
         """构建分析prompt"""
         return self.PROMPT_TEMPLATE.format(document_text=document_text)
 
-    def parse_response(self, content: str) -> AnalysisResult:
+    def parse_response(self, content: str) -> LayoutResult:
         """解析LLM响应"""
         json_data = self.extract_json(content)
 
         if not json_data:
             logger.error(f"[{self.name}] JSON解析失败")
-            return AnalysisResult(
+            return LayoutResult(
                 success=False,
                 raw_response=content,
                 error_message="JSON解析失败"
@@ -120,7 +147,7 @@ class MarkerAgent(BaseAgent):
 
             logger.info(f"[{self.name}] 解析完成，识别到{len(elements)}个元素")
 
-            return AnalysisResult(
+            return LayoutResult(
                 success=True,
                 title=json_data.get("title"),
                 elements=elements,
@@ -131,7 +158,7 @@ class MarkerAgent(BaseAgent):
 
         except Exception as e:
             logger.error(f"[{self.name}] 解析异常: {str(e)}")
-            return AnalysisResult(
+            return LayoutResult(
                 success=False,
                 raw_response=content,
                 error_message=f"解析失败: {str(e)}"
@@ -156,28 +183,75 @@ class MarkerAgent(BaseAgent):
             "body": ElementType.BODY,
             "issuing_authority": ElementType.ISSUING_AUTHORITY,
             "date": ElementType.DATE,
+            # 条款式文档的类型映射
+            "article": ElementType.HEADING1,
+            "chapter": ElementType.HEADING1,
+            "section": ElementType.HEADING2,
         }
         return type_map.get(type_str.lower(), ElementType.BODY)
 
-    def analyze(self, document_text: str) -> AnalysisResult:
+    def analyze(self, document_text: str) -> LayoutResult:
         """
-        分析文档结构
+        分析文档结构，规划排版
 
         Args:
             document_text: 带段落编号的文档文本（格式：[0] 内容\n[1] 内容...）
 
         Returns:
-            AnalysisResult: 分析结果
+            LayoutResult: 排版规划结果
         """
+        logger.info(f"[{self.name}] 开始排版规划")
+
         result = self.execute(document_text)
 
-        # 转换为 AnalysisResult
-        if isinstance(result, AnalysisResult):
+        if isinstance(result, LayoutResult):
             return result
 
         # 如果基类返回了 AgentResult，转换一下
-        return AnalysisResult(
+        return LayoutResult(
             success=result.success,
             raw_response=result.raw_response,
             error_message=result.error
+        )
+
+    def fallback_layout(self, lines: List[str]) -> LayoutResult:
+        """
+        保守兜底排版
+
+        当 LLM 失败或结果不可信时使用
+        策略：title + 全 body
+
+        Args:
+            lines: 文本行列表
+
+        Returns:
+            LayoutResult: 保守的排版结果
+        """
+        logger.warning(f"[{self.name}] 使用保守兜底排版")
+
+        elements = []
+        title = None
+
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            if i == 0 and len(line) < 100:
+                # 第一行且不太长，可能是标题
+                element_type = ElementType.TITLE
+                title = line
+            else:
+                element_type = ElementType.BODY
+
+            elements.append(DocumentElement(
+                index=i,
+                element_type=element_type,
+                content=line
+            ))
+
+        return LayoutResult(
+            success=True,
+            title=title,
+            elements=elements
         )
