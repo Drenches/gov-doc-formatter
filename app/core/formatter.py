@@ -52,6 +52,7 @@ class DocumentFormatter:
         """初始化格式化器"""
         self.doc = Document()
         self._setup_page()
+        self._first_body_encountered = False  # 标记是否已经遇到第一个正文段落
 
     def _setup_page(self):
         """设置页面格式"""
@@ -159,7 +160,11 @@ class DocumentFormatter:
             pf.line_spacing_rule = WD_LINE_SPACING.EXACTLY
 
         # 段前段后间距
-        if style.space_before:
+        # 如果是第一个正文段落，设置段前一行（28磅）
+        if element_type == ElementType.BODY and not self._first_body_encountered:
+            pf.space_before = Pt(28)  # 一行的高度（固定行距28磅）
+            self._first_body_encountered = True
+        elif style.space_before:
             pf.space_before = style.space_before
         else:
             pf.space_before = Pt(0)
