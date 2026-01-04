@@ -127,9 +127,8 @@ class AgentOrchestrator:
         if router_result.needs_cleaning:
             self._notify_progress(progress_callback, "cleaning", "正在清洗文本格式...")
 
-            # 根据噪声问题数量决定清洗模式
-            # 问题多用重度清洗，问题少用保守清洗
-            mode = CleaningMode.DEEP if len(router_result.noise_issues) > 3 else CleaningMode.LIGHT
+            # 默认使用重度清洗模式
+            mode = CleaningMode.DEEP
             cleaning_mode = mode.value
 
             clean_result = self._step_cleaner(text, router_result.noise_issues, mode)

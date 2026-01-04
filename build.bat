@@ -7,13 +7,18 @@ echo.
 cd /d "%~dp0"
 
 echo [1/5] Stopping related processes...
-powershell -Command "Get-Process | Where-Object {$_.ProcessName -like '*公文*' -or $_.ProcessName -like '*python*'} | Stop-Process -Force -ErrorAction SilentlyContinue"
+taskkill /F /IM "公文自动排版工具.exe" 2>nul
+taskkill /F /IM python.exe /FI "WINDOWTITLE eq *公文*" 2>nul
+timeout /t 1 /nobreak >nul
 echo       Done
 echo.
 
 echo [2/5] Cleaning old files...
-powershell -Command "Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue"
-if exist "GovDocFormatter.zip" del /q "GovDocFormatter.zip"
+if exist build rmdir /S /Q build 2>nul
+timeout /t 1 /nobreak >nul
+if exist dist rmdir /S /Q dist 2>nul
+if exist "GovDocFormatter.zip" del /F /Q "GovDocFormatter.zip" 2>nul
+if exist "temp_build.zip" del /F /Q "temp_build.zip" 2>nul
 echo       Done
 echo.
 
@@ -37,12 +42,17 @@ echo       Done
 echo.
 
 echo [5/5] Creating ZIP...
-powershell -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Compress-Archive -Path 'dist\公文自动排版工具' -DestinationPath 'GovDocFormatter.zip' -Force"
-if errorlevel 1 (
-    echo       Trying alternative method...
-    powershell -Command "$folder = Get-ChildItem -Path 'dist' -Directory | Select-Object -First 1; if ($folder) { Compress-Archive -Path $folder.FullName -DestinationPath 'GovDocFormatter.zip' -Force }"
+echo       Waiting for file system...
+timeout /t 3 /nobreak >nul
+cd dist
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; Compress-Archive -Path '公文自动排版工具' -DestinationPath '..\GovDocFormatter.zip' -CompressionLevel Optimal -Force"
+cd ..
+if exist "GovDocFormatter.zip" (
+    echo       Done - GovDocFormatter.zip created
+) else (
+    echo       WARNING: ZIP creation failed
+    echo       You can manually zip the 'dist\公文自动排版工具' folder
 )
-echo       Done
 echo.
 
 echo ================================================

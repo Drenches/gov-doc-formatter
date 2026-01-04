@@ -28,7 +28,7 @@ class CleanerResult(AgentResult):
     """清洗结果"""
     cleaned_text: str = ""
     changes_made: List[str] = field(default_factory=list)
-    mode_used: CleaningMode = CleaningMode.LIGHT
+    mode_used: CleaningMode = CleaningMode.DEEP
 
 
 class CleanerAgent(BaseAgent):
@@ -105,7 +105,7 @@ class CleanerAgent(BaseAgent):
         return "CleanerAgent"
 
     def get_prompt(self, text: str, issues: List[str] = None,
-                   mode: CleaningMode = CleaningMode.LIGHT) -> str:
+                   mode: CleaningMode = CleaningMode.DEEP) -> str:
         """
         根据清洗模式构建prompt
 
@@ -164,7 +164,7 @@ class CleanerAgent(BaseAgent):
         )
 
     def clean(self, text: str, issues: List[str] = None,
-              mode: CleaningMode = CleaningMode.LIGHT) -> str:
+              mode: CleaningMode = CleaningMode.DEEP) -> str:
         """
         清洗文本
 
