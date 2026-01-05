@@ -20,6 +20,7 @@
   - 文本粘贴：直接粘贴公文文本内容进行排版
 - Web界面，支持拖拽上传
 - 即时下载排版后的文档
+- **支持模型切换**：可在界面右上角切换不同的通义千问模型
 - **支持打包成 Windows EXE**，方便非技术用户使用
 
 ## 工具原理
@@ -97,11 +98,13 @@
 3. **首次配置**
    - 程序启动后会自动打开浏览器
    - 首次使用需要配置通义千问 API Key
+   - 可选择使用的模型（默认 qwen-turbo）
    - API Key 获取地址：https://dashscope.console.aliyun.com/
 
 4. **开始使用**
    - 配置完成后自动跳转到主界面
    - 上传 Word 文档或粘贴文本即可自动排版
+   - 点击右上角 ⚙️ 按钮可随时切换模型
 
 ### 配置文件位置
 
@@ -331,6 +334,41 @@ powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPa
 
 ### GET /api/download/{filename}
 下载格式化后的文档
+
+### GET /api/models
+获取当前模型和可用模型列表
+
+**响应**:
+```json
+{
+  "success": true,
+  "current_model": "qwen-turbo",
+  "available_models": [
+    {"id": "qwen-plus", "name": "Qwen-Plus", "description": "平衡性能与成本"},
+    {"id": "qwen-turbo", "name": "Qwen-Turbo", "description": "快速响应"},
+    {"id": "qwen-max", "name": "Qwen-Max", "description": "最高性能"}
+  ]
+}
+```
+
+### POST /api/models/set
+切换使用的模型
+
+**请求**: `application/json`
+```json
+{
+  "model": "qwen-plus"
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "message": "模型切换成功",
+  "current_model": "qwen-plus"
+}
+```
 
 ### GET /api/health
 健康检查
