@@ -368,10 +368,179 @@
         .char-count.error {
             color: #ef4444;
         }
+
+        /* 设置按钮样式 */
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .settings-btn:hover {
+            border-color: #667eea;
+            transform: rotate(90deg);
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .modal-close {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #e0e0e0;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .model-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #0369a1;
+        }
+
+        .model-select-group {
+            margin-bottom: 15px;
+        }
+
+        .model-select-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .model-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .model-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- 设置按钮 -->
+        <button class="settings-btn" id="settingsBtn" title="模型设置">⚙️</button>
+
         <h1>公文自动排版工具</h1>
         <p class="subtitle">基于AI的党政机关公文格式化服务</p>
 
@@ -493,6 +662,31 @@ XXXX"></textarea>
         </div>
     </div>
 
+    <!-- 模型设置弹窗 -->
+    <div class="modal" id="modelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">模型设置</h3>
+                <button class="modal-close" id="modalCloseBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="model-info">
+                    当前正在使用: <strong id="currentModelDisplay">加载中...</strong>
+                </div>
+                <div class="model-select-group">
+                    <label class="model-select-label" for="modalModelSelect">选择模型</label>
+                    <select class="model-select" id="modalModelSelect">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">取消</button>
+                <button class="modal-btn modal-btn-primary" id="modalSaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 页面加载时检查配置状态
         async function checkConfigAndInit() {
@@ -515,6 +709,15 @@ XXXX"></textarea>
         }
 
         function initPage() {
+            // 模型设置相关元素
+            const settingsBtn = document.getElementById('settingsBtn');
+            const modelModal = document.getElementById('modelModal');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+            const modalSaveBtn = document.getElementById('modalSaveBtn');
+            const modalModelSelect = document.getElementById('modalModelSelect');
+            const currentModelDisplay = document.getElementById('currentModelDisplay');
+
             // 文件上传相关元素
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
@@ -543,6 +746,94 @@ XXXX"></textarea>
 
             let selectedFile = null;
             const MAX_CHARS = 50000;
+
+            // 加载模型列表
+            async function loadModels() {
+                try {
+                    const response = await fetch('/api/models');
+                    const data = await response.json();
+
+                    if (data.success && data.available_models) {
+                        modalModelSelect.innerHTML = '';
+                        let currentModelName = '';
+
+                        data.available_models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.id;
+                            option.textContent = `${model.name} - ${model.description}`;
+                            if (model.id === data.current_model) {
+                                option.selected = true;
+                                currentModelName = model.name;
+                            }
+                            modalModelSelect.appendChild(option);
+                        });
+
+                        currentModelDisplay.textContent = currentModelName || data.current_model;
+                    }
+                } catch (error) {
+                    console.error('加载模型列表失败:', error);
+                    currentModelDisplay.textContent = '加载失败';
+                }
+            }
+
+            // 打开模型设置弹窗
+            settingsBtn.addEventListener('click', () => {
+                modelModal.classList.add('show');
+                loadModels();
+            });
+
+            // 关闭弹窗
+            function closeModal() {
+                modelModal.classList.remove('show');
+            }
+
+            modalCloseBtn.addEventListener('click', closeModal);
+            modalCancelBtn.addEventListener('click', closeModal);
+
+            // 点击弹窗背景关闭
+            modelModal.addEventListener('click', (e) => {
+                if (e.target === modelModal) {
+                    closeModal();
+                }
+            });
+
+            // 保存模型设置
+            modalSaveBtn.addEventListener('click', async () => {
+                const selectedModel = modalModelSelect.value;
+
+                if (!selectedModel) {
+                    alert('请选择一个模型');
+                    return;
+                }
+
+                modalSaveBtn.disabled = true;
+                modalSaveBtn.textContent = '保存中...';
+
+                try {
+                    const response = await fetch('/api/models/set', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ model: selectedModel })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('模型切换成功！');
+                        closeModal();
+                        loadModels(); // 重新加载以更新显示
+                    } else {
+                        alert(data.message || '切换失败，请重试');
+                    }
+                } catch (error) {
+                    alert('网络错误，请检查网络连接');
+                } finally {
+                    modalSaveBtn.disabled = false;
+                    modalSaveBtn.textContent = '保存';
+                }
+            });
 
             // 标签页切换
             tabBtns.forEach(btn => {

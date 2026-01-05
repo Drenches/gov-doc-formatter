@@ -336,6 +336,16 @@
                 </p>
             </div>
 
+            <div class="form-group">
+                <label class="form-label" for="modelSelect">选择模型</label>
+                <select class="form-input" id="modelSelect">
+                    <option value="">加载中...</option>
+                </select>
+                <p class="form-hint">
+                    选择用于文档分析的千问模型，您可以随时在主页面右上角切换模型
+                </p>
+            </div>
+
             <div class="section-divider">
                 <div class="section-title">数据存储设置</div>
             </div>
@@ -387,6 +397,7 @@
     <script>
         const form = document.getElementById('setupForm');
         const apiKeyInput = document.getElementById('apiKey');
+        const modelSelect = document.getElementById('modelSelect');
         const dataDirInput = document.getElementById('dataDir');
         const saveBtn = document.getElementById('saveBtn');
         const browseBtn = document.getElementById('browseBtn');
@@ -398,10 +409,36 @@
 
         let defaultDataDir = '';
 
+        // 加载可用模型列表
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/models');
+                const data = await response.json();
+
+                if (data.success && data.available_models) {
+                    modelSelect.innerHTML = '';
+                    data.available_models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = `${model.name} - ${model.description}`;
+                        if (model.id === data.current_model) {
+                            option.selected = true;
+                        }
+                        modelSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载模型列表失败:', error);
+                // 使用默认选项
+                modelSelect.innerHTML = '<option value="qwen-turbo">Qwen-Turbo - 快速响应</option>';
+            }
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const apiKey = apiKeyInput.value.trim();
+            const selectedModel = modelSelect.value;
             const dataDir = dataDirInput.value.trim();
 
             if (!apiKey) {
@@ -414,33 +451,57 @@
                 return;
             }
 
+            if (!selectedModel) {
+                showError('请选择一个模型');
+                return;
+            }
+
             saveBtn.disabled = true;
             saveBtn.innerHTML = '<span class="loading-spinner"></span>正在保存...';
             hideMessages();
 
             try {
-                const requestBody = { api_key: apiKey };
+                // 先保存 API Key 和数据目录
+                const configRequestBody = { api_key: apiKey };
                 if (dataDir) {
-                    requestBody.data_dir = dataDir;
+                    configRequestBody.data_dir = dataDir;
                 }
 
-                const response = await fetch('/api/config/save', {
+                const configResponse = await fetch('/api/config/save', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(configRequestBody)
                 });
 
-                const data = await response.json();
+                const configData = await configResponse.json();
 
-                if (data.success) {
+                if (!configData.success) {
+                    showError(configData.message || '保存配置失败，请重试');
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '保存并开始使用';
+                    return;
+                }
+
+                // 然后保存模型设置
+                const modelResponse = await fetch('/api/models/set', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ model: selectedModel })
+                });
+
+                const modelData = await modelResponse.json();
+
+                if (modelData.success) {
                     showSuccess('配置保存成功！正在跳转...');
                     setTimeout(() => {
                         window.location.href = '/static/index.html';
                     }, 1500);
                 } else {
-                    showError(data.message || '保存失败，请重试');
+                    showError(modelData.message || '保存模型设置失败，请重试');
                     saveBtn.disabled = false;
                     saveBtn.innerHTML = '保存并开始使用';
                 }
@@ -528,6 +589,9 @@
                 console.log('检查配置状态失败');
                 defaultPathSpan.textContent = '(无法获取)';
             }
+
+            // 加载模型列表
+            loadModels();
         }
 
         // 页面加载时检查

@@ -11,7 +11,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Background
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS, reload_api_key
+from app.config import UPLOAD_DIR, OUTPUT_DIR, MAX_FILE_SIZE, ALLOWED_EXTENSIONS, reload_api_key, reload_model, AVAILABLE_MODELS
 from app.core.document_parser import DocumentParser
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.formatter import DocumentFormatter
@@ -47,6 +47,32 @@ class BrowseFolderResponse(BaseModel):
     success: bool
     path: str = ""
     message: str = ""
+
+
+class ModelInfo(BaseModel):
+    """模型信息"""
+    id: str
+    name: str
+    description: str
+
+
+class GetModelsResponse(BaseModel):
+    """获取模型列表响应"""
+    success: bool
+    current_model: str
+    available_models: list[ModelInfo]
+
+
+class SetModelRequest(BaseModel):
+    """设置模型请求"""
+    model: str
+
+
+class SetModelResponse(BaseModel):
+    """设置模型响应"""
+    success: bool
+    message: str = ""
+    current_model: str = ""
 
 
 @router.get("/config/browse-folder", response_model=BrowseFolderResponse)
@@ -179,7 +205,7 @@ async def save_config(request: SaveConfigRequest):
     try:
         from config_manager import config_manager
 
-        # 如果用户指定了数据目录，先设置数据目录
+        # 如果用户指定了数据目录,先设置数据目录
         if request.data_dir and request.data_dir.strip():
             data_dir = request.data_dir.strip()
             # 验证路径是否有效
@@ -216,6 +242,61 @@ async def save_config(request: SaveConfigRequest):
         return SaveConfigResponse(
             success=False,
             message=f"保存失败: {str(e)}"
+        )
+
+
+@router.get("/models", response_model=GetModelsResponse)
+async def get_models():
+    """获取当前模型和可用模型列表"""
+    try:
+        from config_manager import config_manager
+        current_model = config_manager.get_model()
+    except ImportError:
+        from app.config import LLM_MODEL
+        current_model = LLM_MODEL
+
+    return GetModelsResponse(
+        success=True,
+        current_model=current_model,
+        available_models=[ModelInfo(**model) for model in AVAILABLE_MODELS]
+    )
+
+
+@router.post("/models/set", response_model=SetModelResponse)
+async def set_model(request: SetModelRequest):
+    """设置当前使用的模型"""
+    model = request.model.strip()
+
+    if not model:
+        return SetModelResponse(
+            success=False,
+            message="模型名称不能为空"
+        )
+
+    try:
+        from config_manager import config_manager
+
+        # 保存模型配置
+        config_manager.set_model(model)
+
+        # 更新环境变量和配置
+        os.environ["LLM_MODEL"] = model
+        reload_model()
+
+        return SetModelResponse(
+            success=True,
+            message="模型切换成功",
+            current_model=model
+        )
+    except ValueError as e:
+        return SetModelResponse(
+            success=False,
+            message=str(e)
+        )
+    except Exception as e:
+        return SetModelResponse(
+            success=False,
+            message=f"切换失败: {str(e)}"
         )
 
 

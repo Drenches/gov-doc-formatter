@@ -121,6 +121,29 @@ class ConfigManager:
         config.pop("api_key", None)
         self.save_config(config)
 
+    def get_model(self) -> str:
+        """获取当前选择的模型，默认为 qwen-turbo"""
+        config = self.load_config()
+        return config.get("model", "qwen-turbo")
+
+    def set_model(self, model: str):
+        """设置模型"""
+        # 验证模型名称
+        valid_models = [
+            "qwen-plus",
+            "qwen-turbo",
+            "qwen-max",
+            "qwen-flash",
+            "qwen-long-latest",
+            "qwen-long-2025-01-25"
+        ]
+        if model not in valid_models:
+            raise ValueError(f"无效的模型名称: {model}")
+
+        config = self.load_config()
+        config["model"] = model
+        self.save_config(config)
+
     def get_data_dir(self) -> str:
         """获取当前数据目录路径"""
         return str(self.app_dir)
