@@ -666,11 +666,30 @@ XXXX"></textarea>
     <div class="modal" id="modelModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">模型设置</h3>
+                <h3 class="modal-title">设置</h3>
                 <button class="modal-close" id="modalCloseBtn">×</button>
             </div>
             <div class="modal-body">
-                <div class="model-info">
+                <!-- API Key 设置 -->
+                <div class="model-select-group">
+                    <label class="model-select-label" for="modalApiKeyInput">
+                        API Key
+                        <span style="font-size: 12px; color: #999; font-weight: normal;">(选填，留空则不修改)</span>
+                    </label>
+                    <input
+                        type="password"
+                        class="model-select"
+                        id="modalApiKeyInput"
+                        placeholder="留空则保持当前 API Key 不变"
+                        autocomplete="off"
+                    >
+                    <div style="margin-top: 6px; font-size: 12px; color: #666;">
+                        如需更换 API Key，请在此输入新的密钥
+                    </div>
+                </div>
+
+                <!-- 模型选择 -->
+                <div class="model-info" style="margin-top: 20px;">
                     当前正在使用: <strong id="currentModelDisplay">加载中...</strong>
                 </div>
                 <div class="model-select-group">
@@ -716,6 +735,7 @@ XXXX"></textarea>
             const modalCancelBtn = document.getElementById('modalCancelBtn');
             const modalSaveBtn = document.getElementById('modalSaveBtn');
             const modalModelSelect = document.getElementById('modalModelSelect');
+            const modalApiKeyInput = document.getElementById('modalApiKeyInput');
             const currentModelDisplay = document.getElementById('currentModelDisplay');
 
             // 文件上传相关元素
@@ -779,6 +799,7 @@ XXXX"></textarea>
             // 打开模型设置弹窗
             settingsBtn.addEventListener('click', () => {
                 modelModal.classList.add('show');
+                modalApiKeyInput.value = ''; // 清空 API Key 输入框
                 loadModels();
             });
 
@@ -800,9 +821,16 @@ XXXX"></textarea>
             // 保存模型设置
             modalSaveBtn.addEventListener('click', async () => {
                 const selectedModel = modalModelSelect.value;
+                const newApiKey = modalApiKeyInput.value.trim();
 
                 if (!selectedModel) {
                     alert('请选择一个模型');
+                    return;
+                }
+
+                // 验证 API Key（如果用户输入了）
+                if (newApiKey && newApiKey.length < 10) {
+                    alert('API Key 格式不正确，请检查后重试');
                     return;
                 }
 
@@ -810,6 +838,27 @@ XXXX"></textarea>
                 modalSaveBtn.textContent = '保存中...';
 
                 try {
+                    // 如果用户输入了新的 API Key，先保存 API Key
+                    if (newApiKey) {
+                        const apiKeyResponse = await fetch('/api/config/save', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ api_key: newApiKey })
+                        });
+
+                        const apiKeyData = await apiKeyResponse.json();
+
+                        if (!apiKeyData.success) {
+                            alert('API Key 保存失败: ' + (apiKeyData.message || '未知错误'));
+                            modalSaveBtn.disabled = false;
+                            modalSaveBtn.textContent = '保存';
+                            return;
+                        }
+                    }
+
+                    // 然后保存模型设置
                     const response = await fetch('/api/models/set', {
                         method: 'POST',
                         headers: {
@@ -821,11 +870,15 @@ XXXX"></textarea>
                     const data = await response.json();
 
                     if (data.success) {
-                        alert('模型切换成功！');
+                        if (newApiKey) {
+                            alert('API Key 和模型设置已保存！');
+                        } else {
+                            alert('模型切换成功！');
+                        }
                         closeModal();
                         loadModels(); // 重新加载以更新显示
                     } else {
-                        alert(data.message || '切换失败，请重试');
+                        alert(data.message || '保存失败，请重试');
                     }
                 } catch (error) {
                     alert('网络错误，请检查网络连接');
