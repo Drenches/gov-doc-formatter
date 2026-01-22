@@ -21,6 +21,7 @@
 - Web界面，支持拖拽上传
 - 即时下载排版后的文档
 - **支持模型切换**：可在界面右上角切换不同的通义千问模型
+- **支持在线修改 API Key**：无需重启程序即可更换 API Key
 - **支持打包成 Windows EXE**，方便非技术用户使用
 
 ## 工具原理
@@ -104,7 +105,7 @@
 4. **开始使用**
    - 配置完成后自动跳转到主界面
    - 上传 Word 文档或粘贴文本即可自动排版
-   - 点击右上角 ⚙️ 按钮可随时切换模型
+   - 点击右上角 ⚙️ 按钮可随时**切换模型或修改 API Key**
 
 ### 配置文件位置
 
@@ -367,6 +368,24 @@ powershell Compress-Archive -Path "dist\公文自动排版工具" -DestinationPa
   "success": true,
   "message": "模型切换成功",
   "current_model": "qwen-plus"
+}
+```
+
+### POST /api/config/save
+保存配置（API Key）
+
+**请求**: `application/json`
+```json
+{
+  "api_key": "sk-xxxxxxxxxxxxxxxx"
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "message": "配置保存成功"
 }
 ```
 
