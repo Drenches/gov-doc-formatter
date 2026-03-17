@@ -67,15 +67,7 @@ class MarkerAgent(BaseAgent):
 公文内容（每行前面的数字是段落索引）：
 {document_text}
 
-【可用的排版样式】
-- title: 公文标题（居中、二号方正小标宋）
-- heading1: 一级标题（黑体，用于"一、二、三..."开头的段落）
-- heading2: 二级标题（楷体，用于"（一）（二）..."开头的段落）
-- heading3: 三级标题（仿宋加粗，用于"1. 2. 3."开头的段落）
-- heading4: 四级标题（仿宋，用于"（1）（2）..."开头的段落）
-- body: 正文（仿宋，首行缩进两字符）
-- issuing_authority: 发文机关署名（右对齐）
-- date: 成文日期（右对齐）
+{style_description}
 
 【重要原则 - 安全排版】
 本任务目标是"安全排版"，不是"优化结构"。
@@ -99,6 +91,13 @@ class MarkerAgent(BaseAgent):
 - 右下角的日期 → date
 - 其他所有内容 → body
 
+【严格禁止】
+❌ **绝对不要修改段落内容**
+❌ **绝对不要将中文句号(。)改成英文句点(.)**
+❌ **绝对不要修改任何标点符号**
+❌ **绝对不要润色或重写文字**
+- 只标记样式,不改内容
+
 请以 JSON 格式返回：
 ```json
 {{
@@ -119,9 +118,95 @@ class MarkerAgent(BaseAgent):
     def name(self) -> str:
         return "MarkerAgent"
 
-    def get_prompt(self, document_text: str) -> str:
-        """构建分析prompt"""
-        return self.PROMPT_TEMPLATE.format(document_text=document_text)
+    def _generate_style_description(self, font_config=None) -> str:
+        """
+        根据字体配置生成排版样式说明
+
+        Args:
+            font_config: DocumentFontConfig 对象，如果为 None 则使用 GB/T 9704-2012 默认配置
+
+        Returns:
+            str: 排版样式说明文本
+        """
+        # 判断英文数字字体设置
+        if font_config is None:
+            # 默认 GB/T 9704-2012 配置
+            english_font_desc = "Times New Roman"
+        else:
+            # 检查是否所有元素的英文字体都相同
+            fonts = set()
+            for element_type in ["title", "heading1", "heading2", "heading3", "heading4",
+                                "body", "issuing_authority", "date"]:
+                cfg = font_config.get_font_config(element_type)
+                fonts.add(cfg.english_font)
+
+            if len(fonts) == 1:
+                english_font = fonts.pop()
+                # 判断是否跟随中文字体
+                title_cfg = font_config.get_font_config("title")
+                if english_font == title_cfg.chinese_font:
+                    english_font_desc = "跟随中文字体"
+                else:
+                    english_font_desc = english_font
+            else:
+                english_font_desc = "Times New Roman"  # 理论上不会出现这种情况
+
+        # 获取各元素的字体配置
+        if font_config is None:
+            # GB/T 9704-2012 默认配置
+            return f"""【可用的排版样式】
+- title: 公文标题（居中、二号方正小标宋）
+- heading1: 一级标题（三号黑体，用于"一、二、三..."开头的段落）
+- heading2: 二级标题（三号楷体，用于"（一）（二）..."开头的段落）
+- heading3: 三级标题（三号仿宋加粗，用于"1. 2. 3."开头的段落）
+- heading4: 四级标题（三号仿宋，用于"（1）（2）..."开头的段落）
+- body: 正文（三号仿宋，首行缩进两字符）
+- issuing_authority: 发文机关署名（三号仿宋，右对齐）
+- date: 成文日期（三号仿宋，右对齐）
+- 英文数字字体：{english_font_desc}"""
+        else:
+            # 自定义配置
+            title_cfg = font_config.get_font_config("title")
+            h1_cfg = font_config.get_font_config("heading1")
+            h2_cfg = font_config.get_font_config("heading2")
+            h3_cfg = font_config.get_font_config("heading3")
+            h4_cfg = font_config.get_font_config("heading4")
+            body_cfg = font_config.get_font_config("body")
+            auth_cfg = font_config.get_font_config("issuing_authority")
+            date_cfg = font_config.get_font_config("date")
+
+            # 字号映射
+            size_map = {22: "二号", 24: "小二号", 16: "三号", 18: "小三号", 14: "四号"}
+
+            def format_style(cfg):
+                size_name = size_map.get(cfg.size, f"{cfg.size}磅")
+                bold_text = "加粗" if cfg.bold else ""
+                return f"{size_name}{cfg.chinese_font}{bold_text}"
+
+            return f"""【可用的排版样式】
+- title: 公文标题（居中、{format_style(title_cfg)}）
+- heading1: 一级标题（{format_style(h1_cfg)}，用于"一、二、三..."开头的段落）
+- heading2: 二级标题（{format_style(h2_cfg)}，用于"（一）（二）..."开头的段落）
+- heading3: 三级标题（{format_style(h3_cfg)}，用于"1. 2. 3."开头的段落）
+- heading4: 四级标题（{format_style(h4_cfg)}，用于"（1）（2）..."开头的段落）
+- body: 正文（{format_style(body_cfg)}，首行缩进两字符）
+- issuing_authority: 发文机关署名（{format_style(auth_cfg)}，右对齐）
+- date: 成文日期（{format_style(date_cfg)}，右对齐）
+- 英文数字字体：{english_font_desc}"""
+
+    def get_prompt(self, document_text: str, font_config=None) -> str:
+        """
+        构建分析prompt
+
+        Args:
+            document_text: 文档文本
+            font_config: DocumentFontConfig 对象（可选）
+        """
+        style_description = self._generate_style_description(font_config)
+        return self.PROMPT_TEMPLATE.format(
+            document_text=document_text,
+            style_description=style_description
+        )
 
     def parse_response(self, content: str) -> LayoutResult:
         """解析LLM响应"""
@@ -138,21 +223,38 @@ class MarkerAgent(BaseAgent):
         try:
             elements = []
             for item in json_data.get("elements", []):
+                # 纠正内容中的英文句点为中文句号
+                content_text = item.get("content", "")
+                content_text = self._fix_punctuation(content_text)
+
                 element = DocumentElement(
                     index=item.get("index", 0),
                     element_type=self._normalize_type(item.get("type", "body")),
-                    content=item.get("content", "")
+                    content=content_text
                 )
                 elements.append(element)
 
             logger.info(f"[{self.name}] 解析完成，识别到{len(elements)}个元素")
 
+            # 纠正title和其他字段中的标点
+            title = json_data.get("title")
+            if title:
+                title = self._fix_punctuation(title)
+
+            issuing_authority = json_data.get("issuing_authority")
+            if issuing_authority:
+                issuing_authority = self._fix_punctuation(issuing_authority)
+
+            date = json_data.get("date")
+            if date:
+                date = self._fix_punctuation(date)
+
             return LayoutResult(
                 success=True,
-                title=json_data.get("title"),
+                title=title,
                 elements=elements,
-                issuing_authority=json_data.get("issuing_authority"),
-                date=json_data.get("date"),
+                issuing_authority=issuing_authority,
+                date=date,
                 raw_response=content
             )
 
@@ -190,19 +292,47 @@ class MarkerAgent(BaseAgent):
         }
         return type_map.get(type_str.lower(), ElementType.BODY)
 
-    def analyze(self, document_text: str) -> LayoutResult:
+    def _fix_punctuation(self, text: str) -> str:
+        """
+        纠正文本中的标点符号错误
+
+        主要修复: 英文句点(.)被错误地替换中文句号(。)的问题
+
+        Args:
+            text: 待修复的文本
+
+        Returns:
+            str: 修复后的文本
+        """
+        if not text:
+            return text
+
+        import re
+
+        # 规则1: 句尾的英文句点替换为中文句号
+        # 匹配: 中文字符后紧跟英文句点, 并且后面是空格/换行/结尾
+        text = re.sub(r'([\u4e00-\u9fa5])\s*\.\s*($|\n|\r)', r'\1。\2', text)
+
+        # 规则2: 处理可能出现的"。."或".。"混用情况
+        text = text.replace('。.', '。')
+        text = text.replace('.。', '。')
+
+        return text
+
+    def analyze(self, document_text: str, font_config=None) -> LayoutResult:
         """
         分析文档结构，规划排版
 
         Args:
             document_text: 带段落编号的文档文本（格式：[0] 内容\n[1] 内容...）
+            font_config: DocumentFontConfig 对象（可选），用于生成排版规则说明
 
         Returns:
             LayoutResult: 排版规划结果
         """
         logger.info(f"[{self.name}] 开始排版规划")
 
-        result = self.execute(document_text)
+        result = self.execute(document_text, font_config)
 
         if isinstance(result, LayoutResult):
             return result

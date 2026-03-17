@@ -82,7 +82,8 @@ class AgentOrchestrator:
     def process(
         self,
         text: str,
-        progress_callback: Optional[ProgressCallback] = None
+        progress_callback: Optional[ProgressCallback] = None,
+        font_config=None
     ) -> ProcessResult:
         """
         执行完整的公文处理流程
@@ -92,6 +93,7 @@ class AgentOrchestrator:
             progress_callback: 进度回调函数，格式为 callback(stage, message)
                 stage: 阶段标识 (filtering, cleaning, planning, validating, completed)
                 message: 显示给用户的消息
+            font_config: DocumentFontConfig 对象（可选），用于生成排版规则说明
 
         Returns:
             ProcessResult: 处理结果
@@ -156,7 +158,7 @@ class AgentOrchestrator:
                 f"正在规划文档排版...{retry_suffix}"
             )
 
-            layout_result = self._step_marker(current_text)
+            layout_result = self._step_marker(current_text, font_config)
 
             if not layout_result.success:
                 # 使用保守兜底排版
@@ -258,7 +260,7 @@ class AgentOrchestrator:
             error=result.error
         )
 
-    def _step_marker(self, text: str) -> LayoutResult:
+    def _step_marker(self, text: str, font_config=None) -> LayoutResult:
         """Step 3: 调用MarkerAgent进行排版规划"""
         logger.info("[Step 3] 调用 MarkerAgent 排版规划")
 
@@ -268,7 +270,7 @@ class AgentOrchestrator:
             f"[{i}] {line}" for i, line in enumerate(lines) if line.strip()
         )
 
-        return self.marker.analyze(numbered_text)
+        return self.marker.analyze(numbered_text, font_config)
 
     def _step_validator(self, layout_result: LayoutResult) -> ValidatorResult:
         """Step 4: 调用ValidatorAgent进行硬约束校验"""

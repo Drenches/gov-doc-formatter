@@ -69,10 +69,16 @@ def get_api_key() -> str:
     获取 API Key
 
     优先级：
-    1. 环境变量 DASHSCOPE_API_KEY
-    2. 本地配置文件
+    1. 环境变量 OPENAI_API_KEY
+    2. 环境变量 DASHSCOPE_API_KEY（兼容回退）
+    3. 本地配置文件
     """
     # 首先检查环境变量
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if api_key:
+        return api_key
+
+    # 兼容旧环境变量
     api_key = os.getenv("DASHSCOPE_API_KEY", "")
     if api_key:
         return api_key
@@ -86,17 +92,37 @@ def get_api_key() -> str:
         return ""
 
 
-# 通义千问 API 配置
-DASHSCOPE_API_KEY = get_api_key()
+def get_base_url() -> str:
+    """
+    获取 API Base URL
 
-# 可用的模型列表
-AVAILABLE_MODELS = [
+    优先级：
+    1. 环境变量 OPENAI_BASE_URL
+    2. 本地配置文件
+    3. 默认值
+    """
+    base_url = os.getenv("OPENAI_BASE_URL", "")
+    if base_url:
+        return base_url
+
+    try:
+        from config_manager import config_manager
+        return config_manager.get_base_url() or "https://api-deap.dingtalk.com/v1"
+    except ImportError:
+        return "https://api-deap.dingtalk.com/v1"
+
+
+# API 配置
+API_KEY = get_api_key()
+BASE_URL = get_base_url()
+
+# 推荐的模型列表（用户也可以自由输入）
+SUGGESTED_MODELS = [
+    {"id": "qwen3-max", "name": "Qwen3-Max", "description": "最高性能"},
     {"id": "qwen-plus", "name": "Qwen-Plus", "description": "平衡性能与成本"},
     {"id": "qwen-turbo", "name": "Qwen-Turbo", "description": "快速响应"},
-    {"id": "qwen-max", "name": "Qwen-Max", "description": "最高性能"},
+    {"id": "qwen-max", "name": "Qwen-Max", "description": "高性能"},
     {"id": "qwen-flash", "name": "Qwen-Flash", "description": "超快速响应"},
-    {"id": "qwen-long-latest", "name": "Qwen-Long-Latest", "description": "长文本处理"},
-    {"id": "qwen-long-2025-01-25", "name": "Qwen-Long (2025-01-25)", "description": "长文本处理 (稳定版)"}
 ]
 
 
@@ -107,7 +133,7 @@ def get_current_model() -> str:
     优先级:
     1. 环境变量 LLM_MODEL
     2. 本地配置文件
-    3. 默认值 qwen-turbo
+    3. 默认值 qwen3-max
     """
     # 首先检查环境变量
     model = os.getenv("LLM_MODEL", "")
@@ -119,7 +145,7 @@ def get_current_model() -> str:
         from config_manager import config_manager
         return config_manager.get_model()
     except ImportError:
-        return "qwen-turbo"
+        return "qwen3-max"
 
 
 # 模型配置
@@ -134,11 +160,19 @@ ALLOWED_EXTENSIONS = {".docx", ".doc"}
 
 def reload_api_key():
     """重新加载 API Key（用于配置更新后）"""
-    global DASHSCOPE_API_KEY
-    DASHSCOPE_API_KEY = get_api_key()
+    global API_KEY
+    API_KEY = get_api_key()
     # 同时更新环境变量
-    if DASHSCOPE_API_KEY:
-        os.environ["DASHSCOPE_API_KEY"] = DASHSCOPE_API_KEY
+    if API_KEY:
+        os.environ["OPENAI_API_KEY"] = API_KEY
+
+
+def reload_base_url():
+    """重新加载 Base URL（用于配置更新后）"""
+    global BASE_URL
+    BASE_URL = get_base_url()
+    if BASE_URL:
+        os.environ["OPENAI_BASE_URL"] = BASE_URL
 
 
 def reload_model():

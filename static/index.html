@@ -393,6 +393,106 @@
             transform: rotate(90deg);
         }
 
+        /* 字体选择样式 */
+        .font-selection {
+            background: #f9fafb;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .font-selection h3 {
+            margin: 0 0 15px 0;
+            padding: 0;
+        }
+
+        .font-preset-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .font-preset-selector label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .font-preset-selector select {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .global-english-font {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .global-english-font label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .global-english-font select {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .font-detail-config {
+            display: none;
+        }
+
+        .font-detail-config.active {
+            display: block;
+        }
+
+        .font-config-header {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .font-config-header span {
+            font-size: 13px;
+            color: #333;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .font-config-header span:first-child {
+            text-align: left;
+        }
+
+        .font-config-item {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .font-config-item label {
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .font-config-item select {
+            font-size: 13px;
+        }
+
         /* 弹窗样式 */
         .modal {
             display: none;
@@ -534,6 +634,158 @@
             transform: none;
             box-shadow: none;
         }
+
+        /* 批量上传样式 */
+        .batch-file-list {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .batch-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .batch-file-name {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            margin-right: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .batch-file-size {
+            font-size: 12px;
+            color: #999;
+            margin-right: 10px;
+        }
+
+        .batch-file-remove {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .batch-file-remove:hover {
+            background: #cc0000;
+        }
+
+        .batch-progress {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            transition: width 0.3s ease;
+            width: 0%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .batch-results {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .batch-results h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .batch-result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .batch-result-item.failed {
+            border-left-color: #ff4444;
+        }
+
+        .batch-result-name {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            margin-right: 10px;
+        }
+
+        .batch-result-status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .batch-result-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .batch-result-status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -555,17 +807,264 @@
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📄</div>
                 <p class="upload-text">点击或拖拽上传Word文档</p>
-                <p class="upload-hint">支持 .docx, .doc 格式，最大 10MB</p>
+                <p class="upload-hint">支持 .docx, .doc 格式，支持同时上传多个文件，每个最大 10MB</p>
             </div>
-            <input type="file" id="fileInput" accept=".docx,.doc">
+            <input type="file" id="fileInput" accept=".docx,.doc" multiple>
 
-            <div class="file-info" id="fileInfo">
-                <span class="file-name" id="fileName"></span>
+            <!-- 已选文件列表 -->
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <div id="fileList"></div>
+            </div>
+
+            <!-- 字体选择区域 (上传文件模式) -->
+            <div class="font-selection" style="margin: 20px 0;">
+                <h3 style="font-size: 16px; color: #333; margin-bottom: 15px;">字体设置</h3>
+
+                <!-- 预设模式选择 -->
+                <div class="font-preset-selector">
+                    <label>排版标准:</label>
+                    <select id="fontPresetFile" class="model-select">
+                        <option value="gb9704">GB/T 9704-2012（国标公文）</option>
+                        <option value="custom">自定义配置</option>
+                    </select>
+                </div>
+
+                <!-- 英文数字字体全局设置 -->
+                <div class="global-english-font" id="globalEnglishFontFileSection" style="display: none;">
+                    <label>英文数字字体:</label>
+                    <select id="globalEnglishFontFile" class="model-select">
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="follow">跟随中文字体</option>
+                    </select>
+                </div>
+
+                <!-- 详细配置 (默认隐藏，选择自定义后自动展开) -->
+                <div class="font-detail-config" id="fontDetailConfigFile">
+                    <!-- 表头 -->
+                    <div class="font-config-header">
+                        <span>元素类型</span>
+                        <span>中文字体</span>
+                        <span>是否加粗</span>
+                        <span>字号</span>
+                    </div>
+
+                    <!-- 标题 -->
+                    <div class="font-config-item">
+                        <label>标题:</label>
+                        <select class="font-chinese" data-element="title">
+                            <option value="方正小标宋简体" selected>方正小标宋简体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                        </select>
+                        <select class="font-bold" data-element="title">
+                            <option value="true" selected>是</option>
+                            <option value="false">否</option>
+                        </select>
+                        <select class="font-size" data-element="title">
+                            <option value="22" selected>二号</option>
+                            <option value="24">小二号</option>
+                            <option value="16">三号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 一级标题 -->
+                    <div class="font-config-item">
+                        <label>一级标题:</label>
+                        <select class="font-chinese" data-element="heading1">
+                            <option value="黑体" selected>黑体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading1">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading1">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 二级标题 -->
+                    <div class="font-config-item">
+                        <label>二级标题:</label>
+                        <select class="font-chinese" data-element="heading2">
+                            <option value="楷体_GB2312" selected>楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading2">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading2">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 三级标题 -->
+                    <div class="font-config-item">
+                        <label>三级标题:</label>
+                        <select class="font-chinese" data-element="heading3">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading3">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading3">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 四级标题 -->
+                    <div class="font-config-item">
+                        <label>四级标题:</label>
+                        <select class="font-chinese" data-element="heading4">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading4">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading4">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 正文 -->
+                    <div class="font-config-item">
+                        <label>正文:</label>
+                        <select class="font-chinese" data-element="body">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="body">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="body">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 发文机关 -->
+                    <div class="font-config-item">
+                        <label>发文机关:</label>
+                        <select class="font-chinese" data-element="issuing_authority">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="issuing_authority">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="issuing_authority">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 成文日期 -->
+                    <div class="font-config-item">
+                        <label>成文日期:</label>
+                        <select class="font-chinese" data-element="date">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="date">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="date">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <button class="btn btn-primary" id="formatBtn" disabled>
                 开始排版
             </button>
+
+            <!-- 批量处理进度（多文件时显示） -->
+            <div id="batchProgress" class="batch-progress" style="display: none;">
+                <div class="progress-header">
+                    <span>处理进度</span>
+                    <span id="batchProgressText">0 / 0</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="batchProgressBar"></div>
+                </div>
+            </div>
+
+            <!-- 批量处理结果（多文件时显示） -->
+            <div id="batchResults" class="batch-results" style="display: none;">
+                <h3>处理结果</h3>
+                <div id="batchResultsList"></div>
+                <button class="btn btn-success" id="downloadBatchBtn">
+                    打包下载全部文件
+                </button>
+            </div>
         </div>
 
         <!-- 文本粘贴标签页 -->
@@ -587,6 +1086,232 @@ XXXX
 1. 第一点
 XXXX"></textarea>
             <div class="char-count" id="charCount">0 / 50000 字符</div>
+
+            <!-- 字体选择区域 (文本粘贴模式) -->
+            <div class="font-selection" style="margin: 20px 0;">
+                <h3 style="font-size: 16px; color: #333; margin-bottom: 15px;">字体设置</h3>
+
+                <!-- 预设模式选择 -->
+                <div class="font-preset-selector">
+                    <label>排版标准:</label>
+                    <select id="fontPresetText" class="model-select">
+                        <option value="gb9704">GB/T 9704-2012（国标公文）</option>
+                        <option value="custom">自定义配置</option>
+                    </select>
+                </div>
+
+                <!-- 英文数字字体全局设置 -->
+                <div class="global-english-font" id="globalEnglishFontTextSection" style="display: none;">
+                    <label>英文数字字体:</label>
+                    <select id="globalEnglishFontText" class="model-select">
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="follow">跟随中文字体</option>
+                    </select>
+                </div>
+
+                <!-- 详细配置 (默认隐藏，选择自定义后自动展开) -->
+                <div class="font-detail-config" id="fontDetailConfigText">
+                    <!-- 表头 -->
+                    <div class="font-config-header">
+                        <span>元素类型</span>
+                        <span>中文字体</span>
+                        <span>是否加粗</span>
+                        <span>字号</span>
+                    </div>
+
+                    <!-- 标题 -->
+                    <div class="font-config-item">
+                        <label>标题:</label>
+                        <select class="font-chinese" data-element="title">
+                            <option value="方正小标宋简体" selected>方正小标宋简体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                        </select>
+                        <select class="font-bold" data-element="title">
+                            <option value="true" selected>是</option>
+                            <option value="false">否</option>
+                        </select>
+                        <select class="font-size" data-element="title">
+                            <option value="22" selected>二号</option>
+                            <option value="24">小二号</option>
+                            <option value="16">三号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 一级标题 -->
+                    <div class="font-config-item">
+                        <label>一级标题:</label>
+                        <select class="font-chinese" data-element="heading1">
+                            <option value="黑体" selected>黑体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading1">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading1">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 二级标题 -->
+                    <div class="font-config-item">
+                        <label>二级标题:</label>
+                        <select class="font-chinese" data-element="heading2">
+                            <option value="楷体_GB2312" selected>楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="仿宋_GB2312">仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading2">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading2">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 三级标题 -->
+                    <div class="font-config-item">
+                        <label>三级标题:</label>
+                        <select class="font-chinese" data-element="heading3">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading3">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading3">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 四级标题 -->
+                    <div class="font-config-item">
+                        <label>四级标题:</label>
+                        <select class="font-chinese" data-element="heading4">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="heading4">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="heading4">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 正文 -->
+                    <div class="font-config-item">
+                        <label>正文:</label>
+                        <select class="font-chinese" data-element="body">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="body">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="body">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 发文机关 -->
+                    <div class="font-config-item">
+                        <label>发文机关:</label>
+                        <select class="font-chinese" data-element="issuing_authority">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="issuing_authority">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="issuing_authority">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+
+                    <!-- 成文日期 -->
+                    <div class="font-config-item">
+                        <label>成文日期:</label>
+                        <select class="font-chinese" data-element="date">
+                            <option value="仿宋_GB2312" selected>仿宋_GB2312</option>
+                            <option value="仿宋">仿宋</option>
+                            <option value="楷体_GB2312">楷体_GB2312</option>
+                            <option value="楷体">楷体</option>
+                            <option value="黑体">黑体</option>
+                            <option value="方正小标宋简体">方正小标宋简体</option>
+                        </select>
+                        <select class="font-bold" data-element="date">
+                            <option value="false" selected>否</option>
+                            <option value="true">是</option>
+                        </select>
+                        <select class="font-size" data-element="date">
+                            <option value="16" selected>三号</option>
+                            <option value="22">二号</option>
+                            <option value="24">小二号</option>
+                            <option value="18">小三号</option>
+                            <option value="14">四号</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
             <button class="btn btn-primary" id="formatTextBtn" disabled>
                 开始排版
@@ -688,15 +1413,38 @@ XXXX"></textarea>
                     </div>
                 </div>
 
+                <!-- Base URL 设置 -->
+                <div class="model-select-group" style="margin-top: 15px;">
+                    <label class="model-select-label" for="modalBaseUrlInput">
+                        API Base URL
+                    </label>
+                    <input
+                        type="text"
+                        class="model-select"
+                        id="modalBaseUrlInput"
+                        placeholder="https://api-deap.dingtalk.com/v1"
+                        autocomplete="off"
+                    >
+                    <div style="margin-top: 6px; font-size: 12px; color: #666;">
+                        当前: <span id="currentBaseUrlDisplay">加载中...</span>
+                    </div>
+                </div>
+
                 <!-- 模型选择 -->
                 <div class="model-info" style="margin-top: 20px;">
                     当前正在使用: <strong id="currentModelDisplay">加载中...</strong>
                 </div>
                 <div class="model-select-group">
-                    <label class="model-select-label" for="modalModelSelect">选择模型</label>
-                    <select class="model-select" id="modalModelSelect">
-                        <option value="">加载中...</option>
-                    </select>
+                    <label class="model-select-label" for="modalModelInput">选择模型</label>
+                    <input
+                        type="text"
+                        class="model-select"
+                        id="modalModelInput"
+                        list="modalModelList"
+                        placeholder="输入或选择模型名称"
+                        autocomplete="off"
+                    >
+                    <datalist id="modalModelList"></datalist>
                 </div>
             </div>
             <div class="modal-footer">
@@ -734,9 +1482,12 @@ XXXX"></textarea>
             const modalCloseBtn = document.getElementById('modalCloseBtn');
             const modalCancelBtn = document.getElementById('modalCancelBtn');
             const modalSaveBtn = document.getElementById('modalSaveBtn');
-            const modalModelSelect = document.getElementById('modalModelSelect');
+            const modalModelInput = document.getElementById('modalModelInput');
+            const modalModelList = document.getElementById('modalModelList');
             const modalApiKeyInput = document.getElementById('modalApiKeyInput');
+            const modalBaseUrlInput = document.getElementById('modalBaseUrlInput');
             const currentModelDisplay = document.getElementById('currentModelDisplay');
+            const currentBaseUrlDisplay = document.getElementById('currentBaseUrlDisplay');
 
             // 文件上传相关元素
             const uploadArea = document.getElementById('uploadArea');
@@ -765,34 +1516,46 @@ XXXX"></textarea>
             const textTab = document.getElementById('textTab');
 
             let selectedFile = null;
+            let selectedFiles = [];  // 存储多个文件
             const MAX_CHARS = 50000;
 
-            // 加载模型列表
+            // 加载模型列表和 Base URL
             async function loadModels() {
                 try {
                     const response = await fetch('/api/models');
                     const data = await response.json();
 
-                    if (data.success && data.available_models) {
-                        modalModelSelect.innerHTML = '';
-                        let currentModelName = '';
+                    if (data.success && data.suggested_models) {
+                        modalModelList.innerHTML = '';
 
-                        data.available_models.forEach(model => {
+                        data.suggested_models.forEach(model => {
                             const option = document.createElement('option');
                             option.value = model.id;
                             option.textContent = `${model.name} - ${model.description}`;
-                            if (model.id === data.current_model) {
-                                option.selected = true;
-                                currentModelName = model.name;
-                            }
-                            modalModelSelect.appendChild(option);
+                            modalModelList.appendChild(option);
                         });
 
-                        currentModelDisplay.textContent = currentModelName || data.current_model;
+                        // 设置当前模型
+                        if (data.current_model) {
+                            modalModelInput.value = data.current_model;
+                            currentModelDisplay.textContent = data.current_model;
+                        }
                     }
                 } catch (error) {
                     console.error('加载模型列表失败:', error);
                     currentModelDisplay.textContent = '加载失败';
+                }
+
+                // 同时加载 Base URL
+                try {
+                    const statusResponse = await fetch('/api/config/status');
+                    const statusData = await statusResponse.json();
+                    if (statusData.base_url) {
+                        currentBaseUrlDisplay.textContent = statusData.base_url;
+                        modalBaseUrlInput.placeholder = statusData.base_url;
+                    }
+                } catch (error) {
+                    console.error('加载 Base URL 失败:', error);
                 }
             }
 
@@ -800,6 +1563,7 @@ XXXX"></textarea>
             settingsBtn.addEventListener('click', () => {
                 modelModal.classList.add('show');
                 modalApiKeyInput.value = ''; // 清空 API Key 输入框
+                modalBaseUrlInput.value = ''; // 清空 Base URL 输入框
                 loadModels();
             });
 
@@ -820,11 +1584,12 @@ XXXX"></textarea>
 
             // 保存模型设置
             modalSaveBtn.addEventListener('click', async () => {
-                const selectedModel = modalModelSelect.value;
+                const selectedModel = modalModelInput.value.trim();
                 const newApiKey = modalApiKeyInput.value.trim();
+                const newBaseUrl = modalBaseUrlInput.value.trim();
 
                 if (!selectedModel) {
-                    alert('请选择一个模型');
+                    alert('请输入或选择一个模型');
                     return;
                 }
 
@@ -838,20 +1603,24 @@ XXXX"></textarea>
                 modalSaveBtn.textContent = '保存中...';
 
                 try {
-                    // 如果用户输入了新的 API Key，先保存 API Key
-                    if (newApiKey) {
+                    // 如果用户输入了新的 API Key 或 Base URL，先保存配置
+                    if (newApiKey || newBaseUrl) {
+                        const configBody = {};
+                        if (newApiKey) configBody.api_key = newApiKey;
+                        if (newBaseUrl) configBody.base_url = newBaseUrl;
+
                         const apiKeyResponse = await fetch('/api/config/save', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({ api_key: newApiKey })
+                            body: JSON.stringify(configBody)
                         });
 
                         const apiKeyData = await apiKeyResponse.json();
 
                         if (!apiKeyData.success) {
-                            alert('API Key 保存失败: ' + (apiKeyData.message || '未知错误'));
+                            alert('配置保存失败: ' + (apiKeyData.message || '未知错误'));
                             modalSaveBtn.disabled = false;
                             modalSaveBtn.textContent = '保存';
                             return;
@@ -870,11 +1639,11 @@ XXXX"></textarea>
                     const data = await response.json();
 
                     if (data.success) {
-                        if (newApiKey) {
-                            alert('API Key 和模型设置已保存！');
-                        } else {
-                            alert('模型切换成功！');
-                        }
+                        const parts = [];
+                        if (newApiKey) parts.push('API Key');
+                        if (newBaseUrl) parts.push('Base URL');
+                        parts.push('模型');
+                        alert(parts.join('、') + ' 设置已保存！');
                         closeModal();
                         loadModels(); // 重新加载以更新显示
                     } else {
@@ -895,12 +1664,16 @@ XXXX"></textarea>
                     btn.classList.add('active');
 
                     const tabName = btn.dataset.tab;
+
+                    // 移除所有标签页的active类
+                    uploadTab.classList.remove('active');
+                    textTab.classList.remove('active');
+
+                    // 根据选择的标签页添加active类
                     if (tabName === 'upload') {
                         uploadTab.classList.add('active');
-                        textTab.classList.remove('active');
-                    } else {
+                    } else if (tabName === 'text') {
                         textTab.classList.add('active');
-                        uploadTab.classList.remove('active');
                     }
 
                     // 切换时隐藏结果
@@ -924,36 +1697,74 @@ XXXX"></textarea>
             uploadArea.addEventListener('drop', (e) => {
                 e.preventDefault();
                 uploadArea.classList.remove('dragover');
-                const files = e.dataTransfer.files;
+                const files = Array.from(e.dataTransfer.files).filter(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    return ['docx', 'doc'].includes(ext);
+                });
                 if (files.length > 0) {
-                    handleFile(files[0]);
+                    handleFiles(files);
                 }
             });
 
             // 文件选择
             fileInput.addEventListener('change', (e) => {
                 if (e.target.files.length > 0) {
-                    handleFile(e.target.files[0]);
+                    handleFiles(Array.from(e.target.files));
                 }
             });
 
-            function handleFile(file) {
-                const ext = file.name.split('.').pop().toLowerCase();
-                if (!['docx', 'doc'].includes(ext)) {
-                    alert('请选择 .docx 或 .doc 格式的文件');
+            function handleFiles(files) {
+                // 过滤有效文件
+                const validFiles = files.filter(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (!['docx', 'doc'].includes(ext)) {
+                        return false;
+                    }
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert(`文件 ${file.name} 超过10MB，已跳过`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (validFiles.length === 0) {
+                    alert('请选择有效的 .docx 或 .doc 格式文件');
                     return;
                 }
 
-                if (file.size > 10 * 1024 * 1024) {
-                    alert('文件大小不能超过 10MB');
-                    return;
-                }
+                selectedFiles = validFiles;
 
-                selectedFile = file;
-                fileName.textContent = `已选择: ${file.name}`;
-                fileInfo.classList.add('show');
+                // 显示文件列表
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = validFiles.map((file, index) => `
+                    <div class="batch-file-item">
+                        <span class="batch-file-name">${file.name}</span>
+                        <span class="batch-file-size">${formatFileSize(file.size)}</span>
+                        <button class="batch-file-remove" onclick="removeFile(${index})">移除</button>
+                    </div>
+                `).join('');
+
+                fileInfo.style.display = 'block';
                 formatBtn.disabled = false;
                 result.classList.remove('show');
+            }
+
+            // 移除文件
+            window.removeFile = function(index) {
+                selectedFiles.splice(index, 1);
+                if (selectedFiles.length === 0) {
+                    fileInfo.style.display = 'none';
+                    formatBtn.disabled = true;
+                } else {
+                    handleFiles(selectedFiles);
+                }
+            };
+
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
             }
 
             // 文本输入监听
@@ -975,11 +1786,28 @@ XXXX"></textarea>
 
             // 文件上传排版
             formatBtn.addEventListener('click', async () => {
-                if (!selectedFile) return;
+                if (selectedFiles.length === 0) return;
+
+                // 收集字体配置
+                const fontConfig = collectFontConfig('File');
 
                 formatBtn.disabled = true;
                 formatBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
-                await processFormat('/api/format', { file: selectedFile }, formatBtn);
+
+                // 根据文件数量选择不同的API
+                if (selectedFiles.length === 1) {
+                    // 单文件处理
+                    await processFormat('/api/format', {
+                        file: selectedFiles[0],
+                        font_config: fontConfig
+                    }, formatBtn);
+                } else {
+                    // 多文件处理 - 调用批量API
+                    await processBatchFormat({
+                        files: selectedFiles,
+                        font_config: fontConfig
+                    }, formatBtn);
+                }
             });
 
             // 文本粘贴排版
@@ -992,9 +1820,15 @@ XXXX"></textarea>
                     return;
                 }
 
+                // 收集字体配置
+                const fontConfig = collectFontConfig('Text');
+
                 formatTextBtn.disabled = true;
                 formatTextBtn.innerHTML = '<span class="loading-spinner"></span>处理中...';
-                await processFormat('/api/format-text', { text: text }, formatTextBtn);
+                await processFormat('/api/format-text', {
+                    text: text,
+                    font_config: fontConfig
+                }, formatTextBtn);
             });
 
             // 通用处理函数
@@ -1036,6 +1870,7 @@ XXXX"></textarea>
                         // 文件上传
                         const formData = new FormData();
                         formData.append('file', data.file);
+                        formData.append('font_config', JSON.stringify(data.font_config || {}));
                         response = await fetch(apiUrl, {
                             method: 'POST',
                             body: formData
@@ -1044,6 +1879,7 @@ XXXX"></textarea>
                         // 文本提交
                         const formData = new FormData();
                         formData.append('text', data.text);
+                        formData.append('font_config', JSON.stringify(data.font_config || {}));
                         response = await fetch(apiUrl, {
                             method: 'POST',
                             body: formData
@@ -1126,6 +1962,156 @@ XXXX"></textarea>
                 button.disabled = false;
                 button.innerHTML = '开始排版';
             }
+
+            // 初始化字体预设监听器
+            initFontPresetListeners();
+        }
+
+        // 字体配置相关函数
+        // 收集字体配置 (针对特定模式: File 或 Text)
+        function collectFontConfig(mode) {
+            const fontPreset = document.getElementById(`fontPreset${mode}`).value;
+
+            // 如果使用 GB/T 9704-2012 标准，返回空对象（使用后端默认）
+            if (fontPreset === 'gb9704') {
+                return {};
+            }
+
+            // 自定义模式：收集全局英文字体和所有元素的字体配置
+            const detailConfig = document.getElementById(`fontDetailConfig${mode}`);
+            const globalEnglishFont = document.getElementById(`globalEnglishFont${mode}`).value;
+
+            const config = {
+                global_english_font: globalEnglishFont
+            };
+
+            const elementTypes = ['title', 'heading1', 'heading2', 'heading3', 'heading4', 'body', 'issuing_authority', 'date'];
+
+            elementTypes.forEach(elementType => {
+                const chineseSelect = detailConfig.querySelector(`.font-chinese[data-element="${elementType}"]`);
+                const boldSelect = detailConfig.querySelector(`.font-bold[data-element="${elementType}"]`);
+                const sizeSelect = detailConfig.querySelector(`.font-size[data-element="${elementType}"]`);
+
+                if (chineseSelect && boldSelect && sizeSelect) {
+                    config[elementType] = {
+                        chinese_font: chineseSelect.value,
+                        bold: boldSelect.value === 'true',
+                        size: parseInt(sizeSelect.value)
+                    };
+                }
+            });
+
+            return config;
+        }
+
+        // 处理批量格式化
+        async function processBatchFormat(data, button) {
+            try {
+                // 显示进度条
+                const batchProgress = document.getElementById('batchProgress');
+                const batchProgressBar = document.getElementById('batchProgressBar');
+                const batchProgressText = document.getElementById('batchProgressText');
+
+                batchProgress.style.display = 'block';
+                batchProgressBar.style.width = '0%';
+                batchProgressText.textContent = `0 / ${data.files.length}`;
+
+                // 隐藏结果
+                const batchResults = document.getElementById('batchResults');
+                batchResults.style.display = 'none';
+
+                // 准备FormData
+                const formData = new FormData();
+                data.files.forEach(file => {
+                    formData.append('files', file);
+                });
+                formData.append('font_config', JSON.stringify(data.font_config || {}));
+
+                // 发送请求
+                const response = await fetch('/api/format-batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // 更新进度条到100%
+                batchProgressBar.style.width = '100%';
+                batchProgressText.textContent = `${result.total_files} / ${result.total_files}`;
+
+                // 显示结果
+                setTimeout(() => {
+                    batchProgress.style.display = 'none';
+                    displayBatchResults(result);
+                }, 500);
+
+            } catch (error) {
+                alert('批量处理失败: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '开始排版';
+            }
+        }
+
+        // 显示批量处理结果
+        function displayBatchResults(result) {
+            const batchResults = document.getElementById('batchResults');
+            const batchResultsList = document.getElementById('batchResultsList');
+            const downloadBatchBtn = document.getElementById('downloadBatchBtn');
+
+            batchResults.style.display = 'block';
+            batchResultsList.innerHTML = result.results.map(item => {
+                const statusClass = item.success ? 'success' : 'failed';
+                const statusText = item.success ? '成功' : '失败';
+                const errorMsg = item.error_message ? `<div style="font-size: 12px; color: #721c24; margin-top: 4px;">${item.error_message}</div>` : '';
+
+                return `
+                    <div class="batch-result-item ${statusClass}">
+                        <div class="batch-result-name">
+                            ${item.filename}
+                            ${errorMsg}
+                        </div>
+                        <span class="batch-result-status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // 如果有成功的文件，显示下载按钮
+            if (result.successful_files > 0) {
+                downloadBatchBtn.style.display = 'block';
+                downloadBatchBtn.onclick = () => {
+                    window.location.href = `/api/download-batch/${result.batch_id}`;
+                };
+            } else {
+                downloadBatchBtn.style.display = 'none';
+            }
+        }
+
+        // 更新字体预设监听器
+        function initFontPresetListeners() {
+            ['File', 'Text'].forEach(mode => {
+                const presetSelect = document.getElementById(`fontPreset${mode}`);
+                if (presetSelect) {
+                    presetSelect.addEventListener('change', (e) => {
+                        const detailConfig = document.getElementById(`fontDetailConfig${mode}`);
+                        const englishFontSection = document.getElementById(`globalEnglishFont${mode}Section`);
+
+                        if (e.target.value === 'custom') {
+                            // 切换到自定义模式，自动展开详细配置和英文字体选择
+                            detailConfig.classList.add('active');
+                            if (englishFontSection) {
+                                englishFontSection.style.display = 'flex';
+                            }
+                        } else {
+                            // 切换到 GB/T 标准，隐藏详细配置和英文字体选择
+                            detailConfig.classList.remove('active');
+                            if (englishFontSection) {
+                                englishFontSection.style.display = 'none';
+                            }
+                        }
+                    });
+                }
+            });
         }
 
         // 页面加载时执行

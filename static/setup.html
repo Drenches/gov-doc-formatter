@@ -317,12 +317,12 @@
 
         <div class="welcome-text">
             欢迎使用公文自动排版工具！<br><br>
-            本工具使用阿里云通义千问大模型进行文档结构识别，需要配置 API Key 才能使用。
+            本工具使用大语言模型进行文档结构识别，需要配置 API Key 和服务地址才能使用。
         </div>
 
         <form id="setupForm">
             <div class="form-group">
-                <label class="form-label" for="apiKey">通义千问 API Key</label>
+                <label class="form-label" for="apiKey">API Key</label>
                 <input
                     type="password"
                     class="form-input"
@@ -331,18 +331,38 @@
                     autocomplete="off"
                 >
                 <p class="form-hint">
-                    还没有 API Key？
-                    <a href="https://dashscope.console.aliyun.com/" target="_blank">点击前往阿里云百炼获取</a>
+                    请输入 OpenAI 兼容 API 的密钥
                 </p>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="modelSelect">选择模型</label>
-                <select class="form-input" id="modelSelect">
-                    <option value="">加载中...</option>
-                </select>
+                <label class="form-label" for="baseUrl">API Base URL</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="baseUrl"
+                    placeholder="https://api-deap.dingtalk.com/v1"
+                    value="https://api-deap.dingtalk.com/v1"
+                    autocomplete="off"
+                >
                 <p class="form-hint">
-                    选择用于文档分析的千问模型，您可以随时在主页面右上角切换模型
+                    OpenAI 兼容 API 的服务地址
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="modelInput">选择模型</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="modelInput"
+                    list="modelList"
+                    placeholder="输入或选择模型名称"
+                    autocomplete="off"
+                >
+                <datalist id="modelList"></datalist>
+                <p class="form-hint">
+                    选择推荐模型或输入自定义模型名称，您可以随时在主页面右上角切换模型
                 </p>
             </div>
 
@@ -397,7 +417,9 @@
     <script>
         const form = document.getElementById('setupForm');
         const apiKeyInput = document.getElementById('apiKey');
-        const modelSelect = document.getElementById('modelSelect');
+        const baseUrlInput = document.getElementById('baseUrl');
+        const modelInput = document.getElementById('modelInput');
+        const modelList = document.getElementById('modelList');
         const dataDirInput = document.getElementById('dataDir');
         const saveBtn = document.getElementById('saveBtn');
         const browseBtn = document.getElementById('browseBtn');
@@ -409,28 +431,28 @@
 
         let defaultDataDir = '';
 
-        // 加载可用模型列表
+        // 加载推荐模型列表
         async function loadModels() {
             try {
                 const response = await fetch('/api/models');
                 const data = await response.json();
 
-                if (data.success && data.available_models) {
-                    modelSelect.innerHTML = '';
-                    data.available_models.forEach(model => {
+                if (data.success && data.suggested_models) {
+                    modelList.innerHTML = '';
+                    data.suggested_models.forEach(model => {
                         const option = document.createElement('option');
                         option.value = model.id;
                         option.textContent = `${model.name} - ${model.description}`;
-                        if (model.id === data.current_model) {
-                            option.selected = true;
-                        }
-                        modelSelect.appendChild(option);
+                        modelList.appendChild(option);
                     });
+                    // 设置当前模型为默认值
+                    if (data.current_model) {
+                        modelInput.value = data.current_model;
+                    }
                 }
             } catch (error) {
                 console.error('加载模型列表失败:', error);
-                // 使用默认选项
-                modelSelect.innerHTML = '<option value="qwen-turbo">Qwen-Turbo - 快速响应</option>';
+                modelInput.value = 'qwen3-max';
             }
         }
 
@@ -438,7 +460,8 @@
             e.preventDefault();
 
             const apiKey = apiKeyInput.value.trim();
-            const selectedModel = modelSelect.value;
+            const baseUrl = baseUrlInput.value.trim();
+            const selectedModel = modelInput.value.trim();
             const dataDir = dataDirInput.value.trim();
 
             if (!apiKey) {
@@ -452,7 +475,7 @@
             }
 
             if (!selectedModel) {
-                showError('请选择一个模型');
+                showError('请输入或选择一个模型');
                 return;
             }
 
@@ -461,8 +484,11 @@
             hideMessages();
 
             try {
-                // 先保存 API Key 和数据目录
+                // 先保存 API Key、Base URL 和数据目录
                 const configRequestBody = { api_key: apiKey };
+                if (baseUrl) {
+                    configRequestBody.base_url = baseUrl;
+                }
                 if (dataDir) {
                     configRequestBody.data_dir = dataDir;
                 }

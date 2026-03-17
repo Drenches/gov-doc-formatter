@@ -21,6 +21,7 @@ from app.core.styles import (
     FontStyle,
     ParagraphStyle
 )
+from app.core.font_config import DocumentFontConfig, FontConfig
 from app.core.agents import AnalysisResult, DocumentElement
 
 
@@ -48,11 +49,22 @@ BRACKET_MAP = {
 class DocumentFormatter:
     """公文排版格式化器"""
 
-    def __init__(self):
-        """初始化格式化器"""
+    def __init__(self, font_config: Optional[DocumentFontConfig] = None):
+        """
+        初始化格式化器
+
+        Args:
+            font_config: 文档字体配置。如为None,使用GB/T 9704-2012标准默认配置
+        """
         self.doc = Document()
         self._setup_page()
         self._first_body_encountered = False  # 标记是否已经遇到第一个正文段落
+
+        # 如果没有提供字体配置,使用默认配置
+        if font_config is None:
+            self.font_config = DocumentFontConfig()
+        else:
+            self.font_config = font_config
 
     def _setup_page(self):
         """设置页面格式"""
@@ -110,7 +122,7 @@ class DocumentFormatter:
         self._apply_paragraph_style(paragraph, para_style, element.element_type)
 
         # 处理混合字体（中文和数字/英文使用不同字体）
-        self._add_mixed_font_text(paragraph, content, font_style)
+        self._add_mixed_font_text(paragraph, content, font_style, element.element_type)
 
     def _normalize_brackets(self, text: str) -> str:
         """
@@ -195,15 +207,19 @@ class DocumentFormatter:
         # 单位是百分之一字符，所以2个字符 = 200
         ind.set(qn('w:firstLineChars'), str(chars * 100))
 
-    def _add_mixed_font_text(self, paragraph, text: str, font_style: FontStyle):
+    def _add_mixed_font_text(self, paragraph, text: str, font_style: FontStyle, element_type: str):
         """
-        添加混合字体文本（中文及中文标点用中文字体，仅数字和英文字母用Times New Roman）
+        添加混合字体文本（中文及中文标点用中文字体，仅数字和英文字母用英文字体）
 
         Args:
             paragraph: 段落对象
             text: 文本内容
-            font_style: 字体样式
+            font_style: 字体样式(包含字号、加粗等信息) - 仅用于GB/T标准默认值
+            element_type: 元素类型(用于获取对应的字体配置)
         """
+        # 获取当前元素类型的字体配置
+        font_cfg = self.font_config.get_font_config(element_type)
+
         # 只匹配纯数字和英文字母，其他所有字符（包括中文标点）都用中文字体
         # [a-zA-Z0-9]+ 匹配英文和数字
         # [^a-zA-Z0-9]+ 匹配其他所有字符（中文、标点等）
@@ -216,11 +232,11 @@ class DocumentFormatter:
 
             run = paragraph.add_run(segment)
 
-            # 设置字号
-            run.font.size = font_style.size
+            # 使用用户配置的字号（如果用户配置了），否则使用GB/T默认值
+            run.font.size = Pt(font_cfg.size) if hasattr(font_cfg, 'size') else font_style.size
 
-            # 设置加粗
-            run.font.bold = font_style.bold
+            # 使用用户配置的加粗（如果用户配置了），否则使用GB/T默认值
+            run.font.bold = font_cfg.bold if hasattr(font_cfg, 'bold') else font_style.bold
 
             # 确保 rPr 元素存在
             rPr = run._element.get_or_add_rPr()
@@ -233,17 +249,19 @@ class DocumentFormatter:
 
             # 判断是否为纯英文数字
             if self._is_ascii_alphanumeric(segment):
-                # 数字和英文字母使用 Times New Roman
-                rFonts.set(qn('w:ascii'), font_style.name_ascii)
-                rFonts.set(qn('w:hAnsi'), font_style.name_ascii)
-                rFonts.set(qn('w:eastAsia'), font_style.name)  # 东亚字体也设置
+                # 数字和英文字母使用配置的英文字体
+                english_font = font_cfg.english_font
+                rFonts.set(qn('w:ascii'), english_font)
+                rFonts.set(qn('w:hAnsi'), english_font)
+                rFonts.set(qn('w:eastAsia'), font_cfg.chinese_font)  # 东亚字体也设置
             else:
-                # 中文及所有标点符号使用中文字体
+                # 中文及所有标点符号使用配置的中文字体
                 # 同时设置所有字体属性，确保完整覆盖
-                rFonts.set(qn('w:ascii'), font_style.name)
-                rFonts.set(qn('w:hAnsi'), font_style.name)
-                rFonts.set(qn('w:eastAsia'), font_style.name)
-                rFonts.set(qn('w:cs'), font_style.name)  # 复杂脚本字体
+                chinese_font = font_cfg.chinese_font
+                rFonts.set(qn('w:ascii'), chinese_font)
+                rFonts.set(qn('w:hAnsi'), chinese_font)
+                rFonts.set(qn('w:eastAsia'), chinese_font)
+                rFonts.set(qn('w:cs'), chinese_font)  # 复杂脚本字体
 
     def _is_ascii_alphanumeric(self, text: str) -> bool:
         """

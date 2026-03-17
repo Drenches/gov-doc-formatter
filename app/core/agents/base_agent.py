@@ -9,9 +9,9 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Optional
-from dashscope import Generation
+from openai import OpenAI
 
-from app.config import DASHSCOPE_API_KEY, LLM_MODEL
+import app.config as config
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +32,11 @@ class BaseAgent(ABC):
     """
 
     def __init__(self, model: str = None):
-        self.model = model or LLM_MODEL
-        self.api_key = DASHSCOPE_API_KEY
+        self.model = model or config.LLM_MODEL
+        self.client = OpenAI(
+            api_key=config.API_KEY,
+            base_url=config.BASE_URL,
+        )
 
     @property
     @abstractmethod
@@ -73,18 +76,12 @@ class BaseAgent(ABC):
         logger.debug(f"[{self.name}] Prompt长度: {len(prompt)} 字符")
 
         try:
-            response = Generation.call(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                prompt=prompt,
-                result_format='message'
+                messages=[{"role": "user", "content": prompt}],
             )
 
-            if response.status_code != 200:
-                error_msg = f"API调用失败: {response.code} - {response.message}"
-                logger.error(f"[{self.name}] {error_msg}")
-                raise Exception(error_msg)
-
-            content = response.output.choices[0].message.content
+            content = response.choices[0].message.content
             logger.debug(f"[{self.name}] 响应长度: {len(content)} 字符")
             return content
 

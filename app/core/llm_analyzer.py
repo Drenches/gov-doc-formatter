@@ -43,12 +43,13 @@ class LLMAnalyzer:
         self.orchestrator = AgentOrchestrator(model=model)
         self._last_process_result: Optional[ProcessResult] = None
 
-    def analyze(self, document_text: str) -> AnalysisResult:
+    def analyze(self, document_text: str, font_config=None) -> AnalysisResult:
         """
         分析文档结构
 
         Args:
             document_text: 带段落编号的文档文本
+            font_config: DocumentFontConfig 对象（可选），用于生成排版规则说明
 
         Returns:
             AnalysisResult: 分析结果
@@ -56,8 +57,8 @@ class LLMAnalyzer:
         # 移除段落编号前缀（如果有），因为 Orchestrator 会重新添加
         clean_text = self._remove_line_numbers(document_text)
 
-        # 调用编排器处理
-        process_result = self.orchestrator.process(clean_text)
+        # 调用编排器处理，传递字体配置
+        process_result = self.orchestrator.process(clean_text, font_config=font_config)
 
         # 保存处理结果，供外部获取详细信息
         self._last_process_result = process_result

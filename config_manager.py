@@ -121,27 +121,29 @@ class ConfigManager:
         config.pop("api_key", None)
         self.save_config(config)
 
-    def get_model(self) -> str:
-        """获取当前选择的模型，默认为 qwen-turbo"""
+    def get_base_url(self) -> Optional[str]:
+        """获取 API Base URL"""
         config = self.load_config()
-        return config.get("model", "qwen-turbo")
+        return config.get("base_url", "https://api-deap.dingtalk.com/v1")
+
+    def set_base_url(self, base_url: str):
+        """设置 API Base URL"""
+        config = self.load_config()
+        config["base_url"] = base_url
+        self.save_config(config)
+
+    def get_model(self) -> str:
+        """获取当前选择的模型，默认为 qwen3-max"""
+        config = self.load_config()
+        return config.get("model", "qwen3-max")
 
     def set_model(self, model: str):
         """设置模型"""
-        # 验证模型名称
-        valid_models = [
-            "qwen-plus",
-            "qwen-turbo",
-            "qwen-max",
-            "qwen-flash",
-            "qwen-long-latest",
-            "qwen-long-2025-01-25"
-        ]
-        if model not in valid_models:
-            raise ValueError(f"无效的模型名称: {model}")
+        if not model or not model.strip():
+            raise ValueError("模型名称不能为空")
 
         config = self.load_config()
-        config["model"] = model
+        config["model"] = model.strip()
         self.save_config(config)
 
     def get_data_dir(self) -> str:
